@@ -1,0 +1,68 @@
+1-core : todos los nodos
+2-core : remover todos los nodos con un arco o menos. Remover arcos asociados a ese nodo.
+
+Algoritmo CoreHD:
+1.- Obtener el 2-core -> obtener grados de cada nodo del 2-core
+2.- Obtener nodo con mayor grado
+3.- Remover dicho nodo -> actualizar 2-core y grados de sus nodos -> verificar nvo 2-core: Vacío -> tree-breaking (dismantling)
+							   No vacío -> Volver a paso 2	
+
+tree-breaking -> divide el árbol en pequeñas componentes
+
+1.- How to dismantle an acyclic graph?:
+	greedy tree-breaking: Uno iterativamente remueve nodos de la componente conectada más larga (un árbol) dejando la más pequeña.
+	a.- Optimal tree breaking: VER**
+2.- Greedy tree breaking: 
+	Para dividir el "bosque" en componentes pequeñas -> iterativamente se encuentra y se remueve el vértice tq su remoción deja la mínima componente más larga.
+	Por cada componente del bosque, tomar un vértice raíz i_0 -> computar w_i. Partiendo por las hojas y revisando la relación w_i = ... 
+	Poner i_0 en una cola de prioridad cuya prioridad viene dada por el tamaño del componente K(i_0) = ... Luego, iterando hay que elegir el componente más largo de la cola. Luego, C(i_0) = max w_j. Después hay que elegir i* según heurística del papper.
+	Teniendo i* => componente se rompe mod(j*) con j* sec de j's tq i_t pertenece a i*. Cada componente tiene k (j) nodos 
+
+
+Algoritmo Simulated Annealing (SA):
+
+Algoritmo Min-Sum (MS)***: Problema de optimización
+1.- Constraint satisfaction problems for trajectories:
+	3 Restricciones C1**, C2, C3 del apéndice
+	For the decycling problem, the 2-core must be empty  -> C3 no es necesario.
+2.- The lazy leaf-removal model:
+	Introduce (x_i)^t -> restricción de relajación.
+	Si un nodo se convierte en hoja -> en algún momento será removido (tras iteraciones) sin ser forzado.
+	*** Given x⁰ , the corresponding solution to the original
+	model is clearly a solution of the relaxed model.
+	Problema de optiimización -> Dado G = (V,E), buscar t tq C1 se cumpla y minimice sum(i) I[t_i = 0].
+3.- Min-Sum equations for lazy leaf removal:
+	(ij) variable nodes have degree 2 -> MS equations are C6, C7
+4.- Simplifications and efficient computation:
+	Dado que la unica dependencia entre h_{ij} y t_j es a través de I[t_j < t_i] -> Redefine h_{ij} como en C10. Ver ecc C13 y C17 para las cuales hay que precalcular los valores de las ecc C18 - C26 para hacer los calculos lineales quedando como las ecc C27 - C30 (calculan las var h_{ij}⁰ y h_{ij}¹). Además, se pueden calculas las variables h_i linealmente según ecc C31.
+5.- Noise and reinforcement:
+	Romper la degeneración entre soluciones de idéntica energía. Hay dos opciones dependiendo si MS converge o no.
+
+Algoritmo Collective Influence (CI):
+
+Reverse greedy (RG) procedure: Nodos que fueron removidos pueden ponerse de vuelta sin que aumente el tamaño del componente más largo o.o
+
+decycling and then dismantling
+
+****we use the cavity method to obtain close to exact estimates of the dismantling number for random graphs.
+
+****Min-Sum decycling algorithm that (com-
+bined with greedy tree breaking and reverse greedy strat-
+egy for reintroduction of nodes that close cycles but do
+not increase much the size of the largest component) (for network dismantling)
+
+****we study the importance
+of low-degree nodes for dismantling and conclude that
+low-degree nodes are not crucial and close to optimal
+dismantling can be done without including them.
+
+****An important realization of our paper is that on net-
+works that include many short cycles decycling is not
+the optimal strategy.
+
+****We also design a Simulated Annealing algorithm that
+solves the dismantling problems directly (without using
+the relation to decycling).
+
+
+laboratorio -> lab17

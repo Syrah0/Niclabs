@@ -43,11 +43,12 @@ j = 0;
 l= 1000;
 while (igraph_vector_size(&eb) > 0)
   {
+  fprintf(stderr,"entre\n");
   double avg=0.0;
   
 /*  Subcomponente mas grande */
   igraph_clusters(&g, NULL, &csize, NULL, IGRAPH_WEAK);
-  //fprintf (stdout,"%d %1.2f ",j++,igraph_vector_max(&csize));
+  fprintf (stderr,"%d %1.2f ",j++,igraph_vector_max(&csize));
   
   if (igraph_vector_max(&csize) < l)
     {
@@ -92,7 +93,7 @@ while (igraph_vector_size(&eb) > 0)
   igraph_delete_edges(&g,igraph_ess_1(igraph_vector_which_max(&eb)));
   igraph_simplify(&g, 1, 1, 0);
   
-  igraph_destroy(&gaux);
+  //igraph_destroy(&gaux);
   }
 
 igraph_vector_destroy(&eb);

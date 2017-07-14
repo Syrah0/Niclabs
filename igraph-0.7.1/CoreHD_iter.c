@@ -16,7 +16,6 @@ Algoritmo CoreHD:
 #include <stdlib.h>
 #include <string.h>
 
-
 /* Se encarga de seleccionar los nodos que se deben eliminar para conformar el 2-core */
 igraph_vector_t coreCal(igraph_vector_t *res){
 	igraph_vector_t remaux;
@@ -51,18 +50,70 @@ igraph_t* component(igraph_t *g){
 	return VECTOR(complist)[max]; // componente conexa mas grande
 }
 
+/* Se encarga del proceso de eliminacion del nodo de mas grado y la actualizacion del 2-core y los grados del grafo */
+igraph_t* deleteMaxNode(igraph_t *g){
+	if(igraph_vcount(g) == 0){ // 2-core esta vacio
+		return g;
+	}
+	else{ // eliminar nodo de mas grado y recalcular 2-core
+		igraph_t* gaux;
+		igraph_vector_t remaux, result;
+		igraph_vs_t rem;
+		int ret;
+
+		igraph_vector_init(&result, 0);
+
+		/* calcula los grados de los vertices que quedan en el grafo */
+		igraph_degree(g, &result, igraph_vss_all(), IGRAPH_ALL, IGRAPH_NO_LOOPS);
+
+		/* calculo del nodo con mayor grado del 2-core */
+		int max_node = igraph_vector_which_max(&result);
+
+		/* remover nodo con mayor grado del 2-core */
+		ret = igraph_delete_vertices(g, igraph_vss_1(max_node));
+		igraph_vector_destroy(&result);
+
+		/* Calculo de la componente conexa mas grande */
+		gaux = component(g);
+		igraph_destroy(g);
+
+		/* calculo de los nuevos grados de cada nodo */
+		igraph_vector_init(&result, 0);
+		igraph_degree(gaux, &result, igraph_vss_all(), IGRAPH_ALL, IGRAPH_NO_LOOPS);
+
+		/* actualizar el 2-core */
+		/* calcula que nodos se deben eliminar para obtener el 2-core */		
+		remaux  = coreCal(&result);
+
+		igraph_vector_destroy(&result);
+		igraph_vs_vector(&rem, &remaux); // crea el tipo de vector utilizado para llevar a cabo la remosion 
+
+		/* proceso de eliminacion de los nodos seleccionados del grafo */
+		ret = igraph_delete_vertices(gaux, rem); // remueve los vertices y aristas asociadas -> se forma 2-core
+
+		igraph_set_error_handler(igraph_error_handler_ignore);
+
+		igraph_vector_destroy(&remaux);
+		igraph_vs_destroy(&rem);
+
+		/* Se verifica nuevamente el proceso anterior para el nuevo 2-core */
+		deleteMaxNode(gaux);
+	}
+}
+
 int main(){
 	FILE *F;
 	igraph_t graph;
 	igraph_t* gaux;
 	igraph_vector_t remaux, result;
 	igraph_vs_t rem;
+	int ret;
 
 	F = fopen("red3.edges","r");
 	igraph_read_graph_edgelist(&graph,F,0,0); // crea el grafo a partir del archivo con las conexiones
 	fclose(F);
 
-	igraph_simplify(&graph, 1, 1, 0); // se sacan posibles loops y aristas repetidas
+	igraph_simplify(&graph, 1, 1, 0); // se sacan posibles loops y aristas repetidas.
 
 	/* Calculo de la componente conexa mas grande */
 	gaux = component(&graph);
@@ -79,42 +130,18 @@ int main(){
 	igraph_vs_vector(&rem, &remaux); // crea el tipo de vector utilizado para llevar a cabo la remosion 
 
 	/* proceso de eliminacion de los nodos seleccionados del grafo */
-	igraph_delete_vertices(gaux, rem); // remueve los vertices y aristas asociadas -> se forma 2-core
-	igraph_vs_destroy(&rem);
+	ret = igraph_delete_vertices(gaux, rem); // remueve los vertices y aristas asociadas -> se forma 2-core
+
+	igraph_set_error_handler(igraph_error_handler_ignore);
+
 	igraph_vector_destroy(&remaux);
+	igraph_vs_destroy(&rem);
 
-	while(igraph_vcount(gaux) != 0){ // realizar paso 2 y 3 hasta que 2-core sea vacio
+	igraph_copy(&graph,deleteMaxNode(gaux)); // realizar paso 2 y 3 hasta que 2-core sea vacio
 
-		igraph_vector_init(&result, 0);
-		igraph_degree(gaux, &result, igraph_vss_all(), IGRAPH_ALL, IGRAPH_NO_LOOPS); // calcula los grados de los vertices que quedan en el grafo
+	fprintf(stderr, "%i\n", (int)igraph_vcount(&graph));
+	igraph_destroy(gaux);
 
-		/* calculo del nodo con mayor grado del 2-core */
-		int max_node = igraph_vector_which_max(&result);
-
-		/* remover nodo con mayor grado del 2-core */
-		igraph_delete_vertices(gaux, igraph_vss_1(max_node));
-		igraph_vector_destroy(&result);
-
-		igraph_copy(gaux, component(gaux));
-		/* calculo de los nuevos grados de cada nodo */
-		igraph_vector_init(&result, 0);
-		igraph_degree(gaux, &result, igraph_vss_all(), IGRAPH_ALL, IGRAPH_NO_LOOPS);
-
-		/* actualizar el 2-core */
-		/* calcula que nodos se deben eliminar para obtener el 2-core */
-		remaux  = coreCal(&result);
-
-		if(igraph_vector_size(&remaux) != 0){ // se eliminan los nodos
-			igraph_vs_vector(&rem, &remaux); // crea el tipo de vector utilizado para llevar a cabo la remosion 
-			
-			/* proceso de eliminacion de los nodos seleccionados del grafo */
-			igraph_delete_vertices(gaux, rem); // remueve los vertices y aristas asociadas -> se forma 2-core
-			igraph_vs_destroy(&rem);
-			
-		}
-		igraph_vector_destroy(&result);
-		igraph_vector_destroy(&remaux);
-	}
 	printf("VACIO\n");
 	return 0;
 }

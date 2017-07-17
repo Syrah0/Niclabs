@@ -28,7 +28,7 @@ Algoritmo CoreHD:
 
 
 /* Se encarga de seleccionar los nodos que se deben eliminar para conformar el 2-core */
-igraph_vector_t coreCal(igraph_vector_t *res){
+igraph_vector_t coreCal(igraph_vector_t *res, int val){
 	igraph_vector_t remaux;
 
 	/* inicializa el vector que contendra los nodos a remover */
@@ -36,7 +36,7 @@ igraph_vector_t coreCal(igraph_vector_t *res){
 
 	/* se revisa los nodos de remover y se agregar al vector */
 	for(int i=0; i<igraph_vector_size(res); i++){
-		if((int)igraph_vector_e(res,i) == 1){
+		if((int)igraph_vector_e(res,i) != 0 && (int)igraph_vector_e(res,i) < val){
 			igraph_vector_push_back(&remaux, i); // se agrega nodo que debe ser eliminado
 		}
 	}	
@@ -71,10 +71,11 @@ void print_vector(igraph_vector_t *v, FILE *f) {
 
 int main(){
 	FILE *F;
-	igraph_t graph, gaux, gnodes;
+	igraph_t graph, gaux;
 	igraph_vector_t remaux, result, edges, alledges;
 	igraph_es_t rem;
 	igraph_vector_t res;
+	int coreVal = 2;
 
 
 	F = fopen("red3.edges","r");
@@ -91,7 +92,7 @@ int main(){
 		igraph_degree(&gaux, &result, igraph_vss_all(), IGRAPH_ALL, IGRAPH_LOOPS); 
 
 		/* calcula que lados se deben eliminar para obtener el 2-core */
-		remaux  = coreCal(&result);
+		remaux  = coreCal(&result, coreVal);
 		//print_vector(&remaux, stdout);
 
 		if(igraph_vector_size(&remaux) == 0){
@@ -145,7 +146,7 @@ int main(){
 			igraph_degree(&gaux, &result, igraph_vss_all(), IGRAPH_ALL, IGRAPH_LOOPS); 
 			
 			/* calcula que lados se deben eliminar para obtener el 2-core */
-			remaux  = coreCal(&result);
+			remaux  = coreCal(&result, coreVal);
 			//print_vector(&remaux, stdout);
 
 			if(igraph_vector_size(&remaux) == 0){
@@ -177,9 +178,9 @@ int main(){
 		//igraph_vector_destroy(&result);
 	}
 
-	//fprintf(stderr, "%i %i\n", (int)igraph_vcount(&gaux), (int)igraph_ecount(&gaux));
+	fprintf(stderr, "%i %i\n", (int)igraph_vcount(&gaux), (int)igraph_ecount(&gaux));
 	igraph_destroy(&gaux);
-	//fprintf(stderr, "%i %i\n", (int)igraph_vcount(&graph), (int)igraph_ecount(&graph));
+	fprintf(stderr, "%i %i\n", (int)igraph_vcount(&graph), (int)igraph_ecount(&graph));
 	printf("VACIO\n");
 
 	/* realizar tree-breaking o desmantelamiento */

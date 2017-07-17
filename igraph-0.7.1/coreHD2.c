@@ -77,7 +77,7 @@ int main(){
 	igraph_vector_t res;
 
 
-	F = fopen("red3.edges","r");
+	F = fopen("red.edges","r");
 	igraph_read_graph_edgelist(&graph,F,0,0); // crea el grafo a partir del archivo con las conexiones
 	fclose(F);
 
@@ -177,11 +177,9 @@ int main(){
 		//igraph_vector_destroy(&result);
 	}
 
-	//fprintf(stderr, "%i %i\n", (int)igraph_vcount(&gaux), (int)igraph_ecount(&gaux));
+	fprintf(stderr, "%i %i\n", (int)igraph_vcount(&gaux), (int)igraph_ecount(&gaux));
 	igraph_destroy(&gaux);
-	//fprintf(stderr, "%i %i\n", (int)igraph_vcount(&graph), (int)igraph_ecount(&graph));
+	fprintf(stderr, "%i %i\n", (int)igraph_vcount(&graph), (int)igraph_ecount(&graph));
 	printf("VACIO\n");
-
-	/* realizar tree-breaking o desmantelamiento */
 	return 0;
 }

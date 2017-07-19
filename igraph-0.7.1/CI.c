@@ -11,6 +11,7 @@ Algoritmo CIl: Debe tener l inicial -> consideraremos l = 4 (por comparacion rea
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <math.h>
 
 void print_vector(igraph_vector_t *v, FILE *f) {
   long int i;
@@ -23,7 +24,6 @@ void print_vector(igraph_vector_t *v, FILE *f) {
 /* Se encarga de seleccionar los nodos que se deben eliminar para conformar el 2-core */
 igraph_vector_t nodesToDistance(igraph_t *g, int l, int node){
 	igraph_vector_t nodes, nodesExc, neigh;
-	//igraph_vector_ptr_t neighborhood;
 
 	/* inicializa el vector que contendra los nodos a distancia l */
 	igraph_vector_init(&nodes, 0);
@@ -91,34 +91,59 @@ int main(){
 	FILE *F;
 	igraph_t graph;
 	igraph_vector_t degrees, nodes, CIvalues;
-	int l = 2;
+	int l = 4;
+	double rest;
 
 	/* CIl = (Ki - 1) * SUM_{j vecinos de i a distancia l} (Kj - 1) */
 	/* Se lee el archivo que contiene las conexiones de los nodos */
-	F = fopen("red2.edges","r");
+	F = fopen("red3.edges","r");
 	igraph_read_graph_edgelist(&graph,F,0,0); // crea el grafo a partir del archivo con las conexiones
 	fclose(F);
 
-	/* Calcular los grados de los nodos del grafo */
 	igraph_vector_init(&degrees, 0);
 	igraph_degree(&graph, &degrees, igraph_vss_all(), IGRAPH_ALL, IGRAPH_LOOPS); 
 
-	/* Calcular el CI de cada nodo */
-	igraph_vector_init(&CIvalues, 0);
-	for(int i = 0; i < igraph_vector_size(&degrees); i++){
-		nodes = nodesToDistance(&graph, l, i);
-		int CI = (igraph_vector_e(&degrees, i) - 1);
-		int sum = 0;
-		for(int j = 0; j < igraph_vector_size(&nodes); j++){
-			sum += (igraph_vector_e(&degrees, igraph_vector_e(&nodes, j)) - 1);
+	double k = igraph_vector_sum(&degrees)/igraph_vector_size(&degrees); // grado promedio del grafo
+
+	igraph_vector_destroy(&degrees);
+
+	/* Calcular los grados de los nodos del grafo */
+	while(1){
+		igraph_vector_init(&degrees, 0);
+		igraph_degree(&graph, &degrees, igraph_vss_all(), IGRAPH_ALL, IGRAPH_LOOPS); 
+
+		int N = igraph_vector_size(&degrees); // cantidad de nodos del grafo
+
+		/* Calcular el CI de cada nodo */
+		igraph_vector_init(&CIvalues, 0);
+		for(int i = 0; i < N; i++){
+			nodes = nodesToDistance(&graph, l, i);
+			int CI = (igraph_vector_e(&degrees, i) - 1);
+			int sum = 0;
+			for(int j = 0; j < igraph_vector_size(&nodes); j++){
+				sum += (igraph_vector_e(&degrees, igraph_vector_e(&nodes, j)) - 1);
+			}
+			CI *= sum;
+			igraph_vector_push_back(&CIvalues, CI);
 		}
-		CI *= sum;
-		igraph_vector_push_back(&CIvalues, CI);
+
+		double y = (1.0/(l+1));
+		double x = (igraph_vector_sum(&CIvalues)/(N * k));
+		rest = pow(x,y);
+		fprintf(stderr, "x=%lf y=%lf k=%lf\n", x, y, k);
+		fprintf(stderr, "%lf\n",rest);
+		print_vector(&CIvalues, stdout);
+
+		if(rest <= 1){
+			break;
+		}
+
+		int max_node = igraph_vector_which_max(&CIvalues);
+		fprintf(stderr, "%i\n", max_node);
+		igraph_delete_vertices(&graph, igraph_vss_1(max_node));
 	}
-	print_vector(&CIvalues, stdout);
 
 	printf("VACIO\n");
 
-	/* realizar tree-breaking o desmantelamiento */
 	return 0;
 }

@@ -25,6 +25,7 @@ Algoritmo CoreHD:
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <math.h>
 
 
 /* Se encarga de seleccionar los nodos que se deben eliminar para conformar el 2-core */
@@ -71,16 +72,22 @@ void print_vector(igraph_vector_t *v, FILE *f) {
 
 int main(){
 	FILE *F;
+	char filename[32];
 	igraph_t graph, gaux;
 	igraph_vector_t remaux, result, edges, alledges;
 	igraph_es_t rem;
 	igraph_vector_t res;
 	int coreVal = 2;
-
+	double remove = 0.1; // multiplicador de porcentaje
+	double rem_nodes = 0.0; // cantidad de nodos removidos
+	int total_nodes;
 
 	F = fopen("red3.edges","r");
 	igraph_read_graph_edgelist(&graph,F,0,0); // crea el grafo a partir del archivo con las conexiones
 	fclose(F);
+
+	total_nodes = igraph_vcount(&graph);
+	fprintf(stderr, "%i\n", total_nodes);
 
 	igraph_copy(&gaux, &graph); // gaux representara los 2-core formados	
 	
@@ -132,6 +139,17 @@ int main(){
 		/* remover nodo con mayor grado del grafo original */
 		igraph_delete_vertices(&graph, igraph_vss_1(max_node));
 		igraph_vector_destroy(&result);
+
+		rem_nodes += 1.0;
+		if(rem_nodes == ceil(total_nodes*remove)){
+			sprintf(filename,"grafo%d_CoreHD.edges",(total_nodes - (int)rem_nodes));
+		    F = fopen(filename,"w");
+		    igraph_write_graph_edgelist(&graph,F);
+		    fclose(F);
+		    fprintf(stderr,"file: %s with %lf maxCC-nodes\n",filename,remove);
+		    remove += 0.1;
+		}
+		fprintf(stderr, "%lf %lf\n", rem_nodes, ceil(total_nodes*(remove-0.1)));
 
 		igraph_copy(&gaux,&graph); // para obtener el siguiente 2-core
 

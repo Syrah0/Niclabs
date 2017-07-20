@@ -11,16 +11,6 @@ Algoritmo CoreHD:
 
 */
 
-// POR REVISAR
-	// VER BIEN SI SE DEBE HACER SOLO EN LA COMP MAS GRANDE //
-	// O CONSIDERANDO EL GRAFO COMPLETO //
-	// VER SI EL NODO MAX SE ELIMINA DEL 2-CORE Y DE AHI TRABAJAR 
-	// O DEL GRAFO ORIGINAL
-	// VER TEMA DE SI SACAR LOS LOOPS INICIALES O NO
-	// VER SI LOS GRADOS DE LOS NODOS SE CALCULAN CON LOOPS O NO
-	// Y VER LA COMP CONEXA MAS GRANDE 
-	// VER IMPORTANCIA DEL 2-CORE CON NODOS DE GRADO 0 !! ES NECESARIO ELIMINARLOS
-
 #include <igraph.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -44,32 +34,6 @@ igraph_vector_t coreCal(igraph_vector_t *res, int val){
 	return remaux;
 }
 
-/* Se encarga de calcular la componente conexa mas grande */
-igraph_t* component(igraph_t *g){
-	igraph_vector_ptr_t complist;
-
-	/* Se inicializa vector que contendra todas las componentes conexas del grafo */
-	igraph_vector_ptr_init(&complist, 1);
-	igraph_decompose(g,&complist,IGRAPH_WEAK,-1,2); // se realiza la descomposicion del grafo en sus componentes
-
-	/* Se verifica cual es la componente mas grande */
-	int max = 0;
-	for(int i=1; i<igraph_vector_ptr_size(&complist); i++){
-		if(igraph_vector_size(VECTOR(complist)[max]) < igraph_vector_size(VECTOR(complist)[i])){ // Hay una mas grande que la componente actual
-			max = i;
-		}
-	}
-	return VECTOR(complist)[max]; // componente conexa mas grande
-}
-
-void print_vector(igraph_vector_t *v, FILE *f) {
-  long int i;
-  for (i=0; i<igraph_vector_size(v); i++) {
-    fprintf(f, " %li", (long int) VECTOR(*v)[i]);
-  }
-  fprintf(f, "\n");
-}
-
 int main(){
 	FILE *F;
 	char filename[32];
@@ -77,10 +41,10 @@ int main(){
 	igraph_vector_t remaux, result, edges, alledges;
 	igraph_es_t rem;
 	igraph_vector_t res;
-	int coreVal = 2;
+	int coreVal = 2; // k-core deseado
 	double remove = 0.1; // multiplicador de porcentaje
 	double rem_nodes = 0.0; // cantidad de nodos removidos
-	int total_nodes;
+	int total_nodes; // cantidad de nodos del grafo original
 
 	F = fopen("red3.edges","r");
 	igraph_read_graph_edgelist(&graph,F,0,0); // crea el grafo a partir del archivo con las conexiones
@@ -135,19 +99,18 @@ int main(){
 		/* calculo del nodo con mayor grado del 2-core */
 		int max_node = igraph_vector_which_max(&result);
 
-		//fprintf(stderr, "%i\n", max_node);
 		/* remover nodo con mayor grado del grafo original */
 		igraph_delete_vertices(&graph, igraph_vss_1(max_node));
 		igraph_vector_destroy(&result);
 
-		rem_nodes += 1.0;
+		/* Proceso de escritura del nuevo grafo tras cierto porcentaje de eliminacion de nodos */
+		rem_nodes += 1.0; // aumento cantidad de nodos removidos
 		if(rem_nodes == ceil(total_nodes*remove)){
-			sprintf(filename,"grafo%d_CoreHD.edges",(total_nodes - (int)rem_nodes));
+			sprintf(filename,"grafo%d_CoreHD.edges",(total_nodes - (int)rem_nodes)); // nombre del archivo donde estaran los resultados
 		    F = fopen(filename,"w");
-		    igraph_write_graph_edgelist(&graph,F);
+		    igraph_write_graph_edgelist(&graph,F); // escritura
 		    fclose(F);
-		    fprintf(stderr,"file: %s with %lf maxCC-nodes\n",filename,remove);
-		    remove += 0.1;
+		    remove += 0.1; // aumento porcentaje de eliminacion
 		}
 		fprintf(stderr, "%lf %lf\n", rem_nodes, ceil(total_nodes*(remove-0.1)));
 
@@ -157,7 +120,6 @@ int main(){
 		/* calcula que nodos se deben eliminar para obtener el 2-core */
 
 		while(1){
-			//fprintf(stderr, "ciclo2\n");
 			/* calculo de los grados de cada nodo del grafo */
 			igraph_vector_init(&result, 0);
 			igraph_vector_init(&alledges,0);
@@ -165,7 +127,6 @@ int main(){
 			
 			/* calcula que lados se deben eliminar para obtener el 2-core */
 			remaux  = coreCal(&result, coreVal);
-			//print_vector(&remaux, stdout);
 
 			if(igraph_vector_size(&remaux) == 0){
 				break;
@@ -192,8 +153,6 @@ int main(){
 			igraph_vector_destroy(&remaux);
 			igraph_vector_destroy(&alledges);
 		}
-		//print_vector(&alledges, stdout);
-		//igraph_vector_destroy(&result);
 	}
 
 	fprintf(stderr, "%i %i\n", (int)igraph_vcount(&gaux), (int)igraph_ecount(&gaux));

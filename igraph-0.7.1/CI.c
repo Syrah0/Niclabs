@@ -12,6 +12,7 @@ Algoritmo CIl: Debe tener l inicial -> consideraremos l = 4 (por comparacion rea
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
+#include <time.h>
 
 
 /* Se encarga de calcular los nodos en el borde de la vecindad de radio l del nodo "node" */
@@ -111,23 +112,47 @@ igraph_vector_t neighborhood(igraph_t *g, int l, int node){
 	return nodesExc;
 }
 
+/* Se encarga de calcular el tamaño de la componente conexa mas grande */
+int max_component(igraph_t *g){
+	igraph_vector_ptr_t complist;
+
+	/* Se inicializa vector que contendra todas las componentes conexas del grafo */
+	igraph_vector_ptr_init(&complist, 0);
+	igraph_decompose(g,&complist,IGRAPH_WEAK,-1,2); // se realiza la descomposicion del grafo en sus componentes
+
+	/* Se verifica cual es la componente mas grande */
+	int max = 0;
+	for(int i=1; i<igraph_vector_ptr_size(&complist); i++){
+		if(igraph_vcount(VECTOR(complist)[max]) < igraph_vcount(VECTOR(complist)[i])){ // Hay una mas grande que la componente actual
+			max = i;
+		}
+	}
+	return (int)(igraph_vcount(VECTOR(complist)[max])); // componente conexa mas grande
+}
+
 int main(){
-	FILE *F;
+	FILE *F, *G, *H;
 	char filename[32];
-	igraph_t graph;
+	igraph_t graph, gaux;
 	igraph_vector_t degrees, nodes, CIvalues, nodes_neigh, edges;
 	igraph_es_t rem;
-	int l = 3; // radio de la vecindad elegido
+	int l = 2; // radio de la vecindad elegido
 	double rest;
 	double remove = 0.1; // multiplicador de porcentaje
 	double rem_nodes = 0.0; // cantidad de nodos removidos
 	int total_nodes; // cantidad de nodos del grafo original
+	clock_t start, end;
+	double time_used;
+
+	G = fopen("CI_times.csv","w"); // archivo que guardara los tiempo de ejecucion por iteracion
+	H = fopen("CI_iter.csv", "w"); // archivo que guardara los R-index (componente mas grande) por iteracion
 
 	/* Se lee el archivo que contiene las conexiones de los nodos */
 	F = fopen("red3.edges","r");
 	igraph_read_graph_edgelist(&graph,F,0,0); // crea el grafo a partir del archivo con las conexiones
 	fclose(F);
 
+	start = clock();
 	/* Calcular los grados de los nodos del grafo */
 	igraph_vector_init(&degrees, 0);
 	igraph_degree(&graph, &degrees, igraph_vss_all(), IGRAPH_ALL, IGRAPH_LOOPS);  // calculo de los grados de cada nodo del grafo
@@ -171,6 +196,50 @@ int main(){
 		igraph_es_destroy(&rem);
 		igraph_vector_destroy(&degrees);
 
+		// HACER COPIA A GAUX PARA BORRAR NODO AHI, LUEGO COPIAR GAUX A GRAPH 
+		igraph_copy(&gaux, &graph);
+		igraph_delete_vertices(&gaux, igraph_vss_1(max_node)); // eliminacion del nodo con mayor CI
+
+		end = clock();
+		time_used = ((double) (end - start))/CLOCKS_PER_SEC;
+		char output[50];		
+		
+		sprintf(output, "%f", time_used);
+		//fprintf(stderr, "%s\n", output);
+
+		fputs(output,G);
+		putc(',',G);
+
+		/* Proceso de escritura del nuevo grafo tras cierto porcentaje de eliminacion de nodos */
+		rem_nodes += 1.0; // aumento cantidad de nodos removidos
+		if(rem_nodes == ceil(total_nodes*remove)){
+			sprintf(filename,"grafo%d_CI.edges",(total_nodes - (int)rem_nodes)); // nombre del archivo donde estaran los resultados
+		    F = fopen(filename,"w");
+		    igraph_write_graph_edgelist(&gaux,F); // escritura
+		    fclose(F);
+		    remove += 0.1; // aumento porcentaje de eliminacion
+		}
+		fprintf(stderr, "%i\n", (int)rem_nodes);
+
+		/* fin iteracion */
+		sprintf(output,"%d", (int)rem_nodes);
+		fputs(output,H);
+
+		putc(',',H);
+
+		int giant_comp = max_component(&gaux);
+		sprintf(output, "%d", giant_comp);
+
+		fputs(output,G);
+		putc('\n',G);
+
+		fputs(output,H);
+		putc('\n',H);
+
+		/* inicio siguiente iteracion */
+
+		start = clock();
+
 		/* Calcular los grados de los nodos del grafo */
 		igraph_vector_init(&degrees, 0);
 		igraph_degree(&graph, &degrees, igraph_vss_all(), IGRAPH_ALL, IGRAPH_LOOPS); 
@@ -191,11 +260,13 @@ int main(){
 		}
 		
 		igraph_vector_remove(&CIvalues, max_node); // elimina el valor de CI del nodo a eliminar
+		igraph_copy(&graph,&gaux);
+		igraph_destroy(&gaux);
 
-		igraph_delete_vertices(&graph, igraph_vss_1(max_node)); // eliminacion del nodo con mayor CI
+		//igraph_delete_vertices(&graph, igraph_vss_1(max_node)); // eliminacion del nodo con mayor CI
 
 		/* Proceso de escritura del nuevo grafo tras cierto porcentaje de eliminacion de nodos */
-		rem_nodes += 1.0; // aumento cantidad de nodos removidos
+/*		rem_nodes += 1.0; // aumento cantidad de nodos removidos
 		if(rem_nodes == ceil(total_nodes*remove)){
 			sprintf(filename,"grafo%d_CI.edges",(total_nodes - (int)rem_nodes)); // nombre del archivo donde estaran los resultados
 		    F = fopen(filename,"w");
@@ -209,6 +280,8 @@ int main(){
 		x = (igraph_vector_sum(&CIvalues)/(N * k)); // calculo de la nueva base
 		rest = pow(x,y);
 	}
+	fclose(H);
+	fclose(G);
 	fprintf(stderr, "%i %i\n", igraph_vcount(&graph), igraph_ecount(&graph));
 	printf("VACIO\n");
 

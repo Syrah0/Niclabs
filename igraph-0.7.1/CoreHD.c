@@ -16,6 +16,7 @@ Algoritmo CoreHD:
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
+#include <time.h>
 
 
 /* Se encarga de seleccionar los nodos que se deben eliminar para conformar el 2-core */
@@ -34,8 +35,27 @@ igraph_vector_t coreCal(igraph_vector_t *res, int val){
 	return remaux;
 }
 
+/* Se encarga de calcular el tamaño de la componente conexa mas grande */
+int max_component(igraph_t *g){
+	igraph_vector_ptr_t complist;
+
+	/* Se inicializa vector que contendra todas las componentes conexas del grafo */
+	igraph_vector_ptr_init(&complist, 0);
+	igraph_decompose(g,&complist,IGRAPH_WEAK,-1,2); // se realiza la descomposicion del grafo en sus componentes
+
+	/* Se verifica cual es la componente mas grande */
+	int max = 0;
+	for(int i=1; i<igraph_vector_ptr_size(&complist); i++){
+		if(igraph_vcount(VECTOR(complist)[max]) < igraph_vcount(VECTOR(complist)[i])){ // Hay una mas grande que la componente actual
+			max = i;
+		}
+	}
+	return (int)(igraph_vcount(VECTOR(complist)[max])); // componente conexa mas grande
+}
+
+
 int main(){
-	FILE *F;
+	FILE *F, *G, *H;
 	char filename[32];
 	igraph_t graph, gaux;
 	igraph_vector_t remaux, result, edges, alledges;
@@ -45,7 +65,13 @@ int main(){
 	double remove = 0.1; // multiplicador de porcentaje
 	double rem_nodes = 0.0; // cantidad de nodos removidos
 	int total_nodes; // cantidad de nodos del grafo original
+	clock_t start, end;
+	double time_used;
 
+	G = fopen("CoreHD_times.csv","w"); // archivo que guardara los tiempo de ejecucion por iteracion
+	H = fopen("CoreHD_iter.csv", "w"); // archivo que guardara los R-index (componente mas grande) por iteracion
+
+	/* se lee el archivo con los datos del grafo */
 	F = fopen("red3.edges","r");
 	igraph_read_graph_edgelist(&graph,F,0,0); // crea el grafo a partir del archivo con las conexiones
 	fclose(F);
@@ -54,7 +80,8 @@ int main(){
 	fprintf(stderr, "%i\n", total_nodes);
 
 	igraph_copy(&gaux, &graph); // gaux representara los 2-core formados	
-	
+
+	start = clock();	
 	while(1){
 
 		/* calculo de los grados de cada nodo del grafo */
@@ -103,6 +130,16 @@ int main(){
 		igraph_delete_vertices(&graph, igraph_vss_1(max_node));
 		igraph_vector_destroy(&result);
 
+		end = clock();
+		time_used = ((double) (end - start))/CLOCKS_PER_SEC;
+		char output[50];		
+		
+		sprintf(output, "%f", time_used);
+		fprintf(stderr, "%s\n", output);
+
+		fputs(output,G);
+		putc(',',G);
+
 		/* Proceso de escritura del nuevo grafo tras cierto porcentaje de eliminacion de nodos */
 		rem_nodes += 1.0; // aumento cantidad de nodos removidos
 		if(rem_nodes == ceil(total_nodes*remove)){
@@ -112,8 +149,25 @@ int main(){
 		    fclose(F);
 		    remove += 0.1; // aumento porcentaje de eliminacion
 		}
-		fprintf(stderr, "%lf %lf\n", rem_nodes, ceil(total_nodes*(remove-0.1)));
+		//fprintf(stderr, "%lf %lf\n", rem_nodes, ceil(total_nodes*(remove-0.1)));
 
+		/* fin iteracion */
+		sprintf(output,"%d", (int)rem_nodes);
+		fputs(output,H);
+
+		putc(',',H);
+
+		int giant_comp = max_component(&graph);
+		sprintf(output, "%d", giant_comp);
+
+		fputs(output,G);
+		putc('\n',G);
+
+		fputs(output,H);
+		putc('\n',H);
+
+		/* inicio siguiente iteracion */
+		start = clock();
 		igraph_copy(&gaux,&graph); // para obtener el siguiente 2-core
 
 		/* actualizar el 2-core */
@@ -155,6 +209,8 @@ int main(){
 		}
 	}
 
+	fclose(G);
+	fclose(H);
 	fprintf(stderr, "%i %i\n", (int)igraph_vcount(&gaux), (int)igraph_ecount(&gaux));
 	igraph_destroy(&gaux);
 	fprintf(stderr, "%i %i\n", (int)igraph_vcount(&graph), (int)igraph_ecount(&graph));

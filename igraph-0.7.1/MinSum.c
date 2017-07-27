@@ -2,7 +2,7 @@
 Algoritmo Min-Sum:
 dif_i = vecindario del vertice i
 I = funcion indicadora -> 1 si el argumento es vdd y 0 sino.
-S es un conjunto de deciclicaje de G si X*_i(S) = 1 para todo vertice i.
+S es un conjunto yde deciclicaje de G si X*_i(S) = 1 para todo vertice i.
 Xt_i son variables binarias.  t_i(S) = min(t : Xt_i(S) = 1)
 
 De hecho, en el procedimiento de extracción de las hojas, se retira un vértice 
@@ -42,22 +42,22 @@ void print_vector(igraph_vector_t *v, FILE *f) {
   fprintf(f, "\n");
 }
 
-/* Se encarga de calcular la componente conexa mas grande */
-igraph_t* component(igraph_t *g){
+/* Se encarga de calcular el tamaño de la componente conexa mas grande */
+int max_component(igraph_t *g){
 	igraph_vector_ptr_t complist;
 
 	/* Se inicializa vector que contendra todas las componentes conexas del grafo */
-	igraph_vector_ptr_init(&complist, 1);
+	igraph_vector_ptr_init(&complist, 0);
 	igraph_decompose(g,&complist,IGRAPH_WEAK,-1,2); // se realiza la descomposicion del grafo en sus componentes
 
 	/* Se verifica cual es la componente mas grande */
 	int max = 0;
 	for(int i=1; i<igraph_vector_ptr_size(&complist); i++){
-		if(igraph_vector_size(VECTOR(complist)[max]) < igraph_vector_size(VECTOR(complist)[i])){ // Hay una mas grande que la componente actual
+		if(igraph_vcount(VECTOR(complist)[max]) < igraph_vcount(VECTOR(complist)[i])){ // Hay una mas grande que la componente actual
 			max = i;
 		}
 	}
-	return VECTOR(complist)[max]; // componente conexa mas grande
+	return (int)(igraph_vcount(VECTOR(complist)[max])); // componente conexa mas grande
 }
 
 
@@ -69,6 +69,12 @@ int main(){
 	double remove = 0.1; // multiplicador de porcentaje
 	double rem_nodes = 0.0; // cantidad de nodos removidos
 	int total_nodes; // total de nodos del grafo original
+	int T = 35; // limite de la iteracion
+	clock_t start, end;
+	double time_used;
+
+	G = fopen("MinSum_times.csv","w"); // archivo que guardara los tiempo de ejecucion por iteracion
+	H = fopen("MinSum_iter.csv", "w"); // archivo que guardara los R-index (componente mas grande) por iteracion
 
 	/* Se lee el archivo que contiene las conexiones de los nodos */
 	F = fopen("red3.edges","r");
@@ -76,6 +82,18 @@ int main(){
 	fclose(F);
 
 	total_nodes = igraph_vcount(&graph);
+
+	/* Proceso de escritura del nuevo grafo tras cierto porcentaje de eliminacion de nodos */
+		rem_nodes += 1.0; // aumento cantidad de nodos removidos
+		if(rem_nodes == ceil(total_nodes*remove)){
+			sprintf(filename,"grafo%d_MinSum.edges",(total_nodes - (int)rem_nodes)); // nombre del archivo donde estaran los resultados
+		    F = fopen(filename,"w");
+		    igraph_write_graph_edgelist(&graph,F); // escritura
+		    fclose(F);
+		    remove += 0.1; // aumento porcentaje de eliminacion
+		}
+
+
 
 	
 	fprintf(stderr, "%i %i\n", igraph_vcount(&graph), igraph_ecount(&graph));

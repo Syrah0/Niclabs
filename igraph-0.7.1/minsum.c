@@ -39,7 +39,7 @@ struct ConvexCavity {
 	void push_back(float h0, float h1) {
 		H.push_back(h1);
 		SH += h1;
-		real_t const h01 = h0 - h1;
+		float h01 = h0 - h1;
 		if (h01 <= m1) {
 			m2 = m1;
 			m1 = h01;
@@ -49,13 +49,13 @@ struct ConvexCavity {
 		}
 
 	}
-	float cavityval(int i) const {
+	float cavityval(int i) {
 		return SH - H[i];
 	}
-	float cavitymax(int i) const {
+	float cavitymax(int i) {
 		return SH - H[i] + min(0, i == idxm1 ? m2 : m1);
 	}
-	float fullmax() const {
+	float fullmax() {
 		return SH + min(0, m1);
 	}
 	float *H;
@@ -66,41 +66,50 @@ struct ConvexCavity {
 struct Buffers {
 	Buffers() : Ui(depth + 1), out(depth + 1), C(depth + 1), L0(depth + 1), G1(depth + 1) {}
 	void init(int n) {
-		Hin.resize(n, Mes(depth + 1));
-		std::fill(&minh[0], &minh[0] + minh.size(), INFINITY);
-		std::fill(&minh2[0], &minh2[0] + minh2.size(), INFINITY);
-		minh.resize(n, INFINITY);
-		minh2.resize(n, INFINITY);
+		//Hin.resize(n, Mes(depth + 1));
+		//std::fill(&minh[0], &minh[0] + minh.size(), INFINITY);
+		//std::fill(&minh2[0], &minh2[0] + minh2.size(), INFINITY);
+		//minh.resize(n, INFINITY);
+		//minh2.resize(n, INFINITY);
 		for (int t = 0; t <= depth; ++t)
 			C[t].reset();
 	}
-	Mes *Hin;
-	float *minh;
-	float *minh2;
-	Proba Ui;
-	Mes out;
+	//Mes *Hin; // tendra tamaño n y cada espacio se inicializa con un mensaje
+	//float *minh;
+	//float *minh2;
+	//Proba Ui;
+	//Mes out; //SOLO CONTENDRA DOS PROBAS H[0] Y H[1] (POR TAMAÑO DE n DADO AL TEMPLATE) PARA EL MENSAJE
+	// CADA PROBA TENDRA TAMAÑO DEPTH+1
 	ConvexCavity *C;
-	float *L0, *G1;
+	//float *L0, *G1;
+	check_type ck;
 };
 
-Buffers *Mem;
+//Buffers *Mem;
 
-struct EdgeProperties {
+float **Mem = NULL;
+float **out = NULL;
+float Ui[depth+1];
+float L0[depth+1];
+float G1[depth+1];
+
+/*struct EdgeProperties {
 	EdgeProperties() :
 		ij(depth + 1), ji(depth + 1)
 	//edge properties
 	//messages
 	Mes ij, ji;
 };
-
+*/
+/*
 struct VertexProperties  {
 	VertexProperties() : H(depth + 1, 0), extH(depth + 1, 0), t(0) {}
 	//field
-	Proba H;
-	Proba extH;
+	//Proba H;
+	//Proba extH;
 	//decisional variable
 	//int t;
-};
+};*/
 
 /*
 typedef adjacency_list<vecS, vecS, undirectedS,
@@ -175,10 +184,11 @@ int min(int a, int b){
 	}
 }
 
-int id_min_element(Proba H){
+int id_min_element(float *H){
 	float min = H[0];
 	int t_min = 0;
-	for(int i=1; i < (int)(H.size()); i++){
+	int len = sizeof(H)/sizeof(H[0])
+	for(int i=1; i < len; i++){
 		if(H[i] < min){
 			min = H[i];
 			t_min = i;
@@ -230,6 +240,87 @@ check_type check_v(bool output = false){
 	return ck;
 }
 
+float **copy_matrix(float **M, float **Hin){
+
+	int row_Mem = sizeof(M)/sizeof(M[0]);
+	int row_Hin = sizeof(Hin)/sizeof(Hin[0]);
+
+	if(row_Mem <= row_Hin){
+		for(int i=0; i < row_Mem; i++){
+			for(int j=0; j <= depth; j++){
+				Hin[i][j] = M[i][j];
+			}
+		}
+		if(row_Mem != row_Hin){ //rellenar el resto de Hin con 0's
+			for(int i=row_Mem; i < row_Hin; i++){
+				for(int j=0; j <= depth; j++){
+					Hin[i][j] = 0;
+				}
+			}
+		}
+	}
+	else{
+		for(int i=0; i < row_Hin; i++){
+			for(int j=0; j <= depth; j++){
+				Hin[i][j] = M[i][j];
+			}
+		}
+	}
+
+	return Hin;
+}
+
+void free_matrix(void **M){
+	int row_Mem = sizeof(M)/sizeof(M[0]);
+	for(int i=0; i < row_Mem; i++){
+		free(M[i]);
+	}
+	free(M);
+	M = NULL;
+}
+
+void init(float **M, int size){
+	if(M == NULL){ //init M
+		M = (float **)malloc((2*size)*sizeof(float*));
+
+		for(int i = 0; i < (2*size); i++){
+			M[i] = (float*)malloc((depth+1)*sizeof(float));
+		}
+	}
+}
+
+float minumum() { // ver cambio a minimo
+	float m = inf;
+	//int const depth = size();
+	for (int i = 0; i < 2; i++)
+		for (int j = 0; j <= depth; j++)
+			m = min(m, out[i][j]);
+	return m;
+}
+
+void reduce(){
+	float m = minimum();
+	//int const depth = size();
+	for (int i = 0; i < 2; i++)
+		for (int j = 0; j <= depth; j++)
+			out[i][j] -= m; // revisar si es resta
+}
+
+float l8dist_aux(float *old, float *out){
+	float n = 0;
+	for(int i = depth+1; i >= 0; i--){
+		n = max(n, fabs(old[i] - out[i]));
+	}
+	return n;
+}
+
+float l8dist(float *old0, float *old1, float **out){ 
+	float l8 = 0;
+	l8 = max(l8,l8dist_aux(old0,out[0]));
+	l8 = max(l8,l8dist_aux(old1,out[1]));
+	return l8;
+}
+
 float update(int vertex){ // i = numero que representa al vertice.{
 	igraph_vector_t result;
 	igraph_vector_init(&result, 0);
@@ -237,19 +328,54 @@ float update(int vertex){ // i = numero que representa al vertice.{
 	int n = igraph_vector_e(&result,vertex); // grado del nodo i
 
 	if (n == 0) {
-		g[vertex].H = Proba(depth + 1, INFINITY); // VER
-		g[vertex].H[1] = 0;
+		//g[vertex].H = Proba(depth + 1, INFINITY); // VER
+		//g[vertex].H[1] = 0; // g[vertex].H es PROBA -> g[vertex].H[1] = p_[1]
+		for(int i=0; i <= depth; i++){
+			//igraph_cattribute_VAN_set(&graph,"t",i,ti); // attr t del vertice i
+			char name_atr[32];
+			sprintf(name_atr,"pdH_%d",i);
+			igraph_cattribute_VAN_set(&graph,name_atr,vertex,INFINITY);
+		}
+		igraph_cattribute_VAN_set(&graph,"pdH_1",vertex,0);
 		return 0;
 	}
+	// siempre se trabaja en base al mismo buffer pq Mem es global y ese se modifica
+/*	Buffers & buffers = Mem[0];
+	buffers.init(n); 
+	VER!!!! ConvexCavity *C = buffers.C;
+	LISTO Mes *Hin = buffers.Hin; // tiene n mensajes donde cada uno tiene 2 PROBA de tamaño depth+1 cada uno
+	LISTO float *maxh = buffers.maxh;
+	LISTO! float *maxh2 = buffers.maxh2;
+	LISTO Mes & out = buffers.out; // out tiene 2 PROBA de tamaño depth+1 cada uno
+	LISTO!!! Proba & Ui  = buffers.Ui; //ARREGLAR SER USA AL FINAL -> VER SI TRANSFORMAR SOLO A VECTOR
+*/
 
-	Buffers & buffers = Mem[1];
-	buffers.init(n);
-	ConvexCavity *C = buffers.C;
-	Mes *Hin = buffers.Hin;
-	float *maxh = buffers.maxh;
-	float *maxh2 = buffers.maxh2;
-	Mes & out = buffers.out;
-	Proba & Ui  = buffers.Ui;
+	/*if(Mem == NULL){ //init Mem
+		Mem = (float **)malloc((n*2)*sizeof(float*));
+
+		for(int i = 0; i < (2*n); i++){
+			Mem[i] = (float*)malloc((depth+1)*sizeof(float));
+		}
+	}*/
+	
+	init(Mem, n); // para caso inicial
+	init(out, 1); // para caso inicial
+	//init_vector(Ui); // para caso inicial
+
+	float Hin[2*n][depth+1];
+	float maxh[n];
+	float maxh2[n];
+
+	for(int i=0; i<n; i++){
+		maxh[i] = INFINITY;
+		maxh2[i] = INFINITY;
+	}
+
+	Hin = copy_matrix(Mem,Hin);
+
+	free_matrix(Mem); // se libera dado que el siguiente Mem puede tener otras dimensiones
+
+	init(Mem, n); // Se crea Mem con dimensiones correctas
 
 	float summaxh = 0;
 	float summaxh2 = 0;
@@ -260,41 +386,95 @@ float update(int vertex){ // i = numero que representa al vertice.{
 	int j = 0;
 
 	// igraph_vector_e(&neighbors,k) = vecino k de vertex
-	for (int k=0; k < igraph_vector_size(&neighbors); k++) {
+	for (int k=0; k < igraph_vector_size(&neighbors); k++, ++j) {
+		int index = 2*j; // el otro sera 2*j + 1;
 		if(vertex < igraph_vector_e(&neighbors,k)){
-			Hin[j] = g[e].ji; //ARREGLAR 
+			//Hin[j] = g[e].ji; //ARREGLAR 
+			//int index = 2*j; // el otro sera 2*j + 1;
+
+			// MES SERA UNA MATRIZ DE 2X(DEPTH+1) TQ MES[0] = H[0] Y MES[1] = H[1]
+
+			igraph_integer_t e;
+			igraph_get_eid(&graph,&e,vertex,igraph_vector_e(&neighbors,k),0,0);
+			for(int i=0; i<=depth; i++){
+				char name_atr[32];
+				sprintf(name_atr,"ji0_%d",k);
+				Hin[index][i] = igraph_cattribute_EAN(&graph,name_atr,e);
+				
+				sprintf(name_atr,"ji1_%d",k);
+				Hin[index+1][i] =  igraph_cattribute_EAN(&graph,name_atr,e);
+			}
 		}
 		else{
-			Hin[j] = g[e].ij; //ARREGLAR	
+			// Hin[j] = Corresponde al j-esimo mensaje del vector Hin
+			// este mensaje contiene 2 Proba de largo depth+1 cada una
+			// => le asocia a g[e].ij las dos Proba de Hin[j]
+			//Hin[j] = g[e].ij; //ARREGLAR	
+
+			igraph_integer_t e;
+			igraph_get_eid(&graph,&e,igraph_vector_e(&neighbors,k),vertex,0,0);
+			// MES SERA UNA MATRIZ DE 2X(DEPTH+1) TQ MES[0] = H[0] Y MES[1] = H[1]
+			for(int i=0; i<=depth; i++){
+				char name_atr[32];
+				sprintf(name_atr,"ij0_%d",k);
+				Hin[index][i] = igraph_cattribute_EAN(&graph,name_atr,e);
+				
+				sprintf(name_atr,"ij1_%d",k);
+				Hin[index+1][i] =  igraph_cattribute_EAN(&graph,name_atr,e);
+			}
 		}
-		Proba const * h = Hin[j].H;
-		int *L0 = buffers.L0;
-		int *G1 = buffers.G1;
-		L0[0] = h[0][0];
+		//Proba const * h = Hin[j].H; // VA A SER UN VECTOR DE LARGO 2, CONTENDRA AMBOS H DEL MENSAJE Hin
+			//AQUIIIII REVISAR!!!!!!!!!!!!
+		float *h0 = Hin[index];
+		float *h1 = Hin[index+1];
+
+		//float *L0 = buffers.L0; //GLOBALES L0 Y G1!!!!!!!!!!!!!!!!!!!!!!!
+		//float *G1 = buffers.G1;
+		L0[0] = h0[0]; // h[0] es Hin[j].H[0] (PROBA 0 DEL ARRAY DE 2 PROBAS DEL MENSAJE)
+		// Y h[0][0] corresponde al valor almacenado en la p_[0] de PROBA Hin[j].H[0]
 		for (int ti = 1; ti <= depth; ++ti){
-			L0[ti] = min(L0[ti - 1],h[0][ti]); // QUIERO EL MINIMO!!
+			//L0[ti] = min(L0[ti - 1],h[0][ti]); // QUIERO EL MINIMO!!
+			L0[ti] = min(L0[ti - 1],h0[ti]); // QUIERO EL MINIMO!!
 		}
 		G1[depth] = INFINITY;
 		// REVISAR COMO ACTUA EL ti PQ POR CADA ti 
 		for (int ti = depth; ti >= 0; --ti){
-			G1[ti] = min(G1[ti + 1],h[1][ti + 1]); // VER PQ ti + 1 Y NO ti
+			//G1[ti] = min(G1[ti + 1],h[1][ti + 1]); // VER PQ ti + 1 Y NO ti
+			G1[ti] = min(G1[ti + 1],h1[ti + 1]); // VER PQ ti + 1 Y NO ti
 		}
 
 		for (int ti = 1; ti <= depth; ++ti) {
 			float lk = L0[ti - 1]; // Lk
-			float rk = min(h[0][ti],G1[ti]); // VER SI ES MIN O MAX -> SE CONSIDERO MIN
+//			float rk = min(h[0][ti],G1[ti]); // VER SI ES MIN O MAX -> SE CONSIDERO MIN
+			float rk = min(h0[ti],G1[ti]); // VER SI ES MIN O MAX -> SE CONSIDERO MIN
 			C[ti].push_back(rk, lk); // permite calcular M1, M2, k1 VERRRRRRRR
 		}
 
 		/* VER ESTAS DEFINICIONES */
-		minh[j] = min(h[0][0], G1[0]); // VER SI ES MIN O MAX --> SE CONSIDERO MIN
+//		minh[j] = min(h[0][0], G1[0]); // VER SI ES MIN O MAX --> SE CONSIDERO MIN
+		minh[j] = min(h0[0], G1[0]); // VER SI ES MIN O MAX --> SE CONSIDERO MIN
 		minh2[j] = L0[depth];
 		summinh += minh[j];
 		summinh2 += minh2[j];
 	}
-	Proba & Hi = g[i].H; // VER COMO AGREGAR ESTE ATRIBUTO AL VERTICE I
-	Hi *= rein; // multiplica cada elemento de Hi por rein
-	Hi += g[i].extH; // VER COMO AGREGAR ESTE ATRIBUTO AL VERTICE I
+	//Proba & Hi = g[i].H; // VER COMO AGREGAR ESTE ATRIBUTO AL VERTICE I
+	float Hi[depth+1];
+	float extH[depth+1];
+	for(int k = 0; k <= depth; k++){
+		char name_atr[32];
+		char name_atr_ext[32];
+		sprintf(name_atr,"pdH_%d",k);
+		sprintf(name_atr_ext,"pdextH_%d",k);
+		Hi[k] = (float)(igraph_cattribute_VAN(&graph,name_atr,i));
+		extH[k] = (float)(igraph_cattribute_VAN(&graph,name_atr_ext,i));
+	}
+	for(int k = 0; k <= depth; k++){
+		Hi[k] *= rein;
+		Hi[k] += extH[k];
+	}
+
+	//Hi *= rein; // multiplica cada elemento de Hi por rein
+	//Hi += g[i].extH; // VER COMO AGREGAR ESTE ATRIBUTO AL VERTICE I
 	float eps = 0;
 	j = 0;
 	igraph_vector_destroy(&neighbors);
@@ -302,8 +482,17 @@ float update(int vertex){ // i = numero que representa al vertice.{
 	igraph_vector_init(&neighbors,0);
 	igraph_neighboors(&graph,&neighbors,vertex,IGRAPH_OUT);
 	for (int k=0; k < igraph_vector_size(&neighbors); k++) {
+		int index = 2*j;
 		float csumminh = summinh - minh[j]; // VER PARA QUE SIRVE
-		Proba * U = out.H;
+		float U[2][depth+1];
+
+		U = copy_matrix(out,U);
+
+		//free_matrix(out);
+		//Proba * U = out.H; // out es un mensaje => Contine 2 proba (0 y 1) cada una de largo depth+1
+		// U contendra las dos proba de out (0 y 1) cada una de largo depth+1
+
+		// OUT ES GLOBAL, U CONTIENE LO QUE CONTIENE OUT Y SI U SE MODIFICA OUT TAMBIEN
 
 		// case ti = 0
 		U[0][0] = csumminh - mu; // h0_ij(0)
@@ -318,18 +507,56 @@ float update(int vertex){ // i = numero que representa al vertice.{
 		U[0][depth] = summinh2 - minh2[j] - 1;
 		U[1][depth] = summinh2 - minh2[j] - 1;
 
-		U[0] += Hi;
-		U[1] += Hi;
+		// A CADA VALOR DE PROBA (0, 1, ..., DEPTH) LE SUMA SU RESPECTIVO DE Hi
+		// RECORDAR QUE SE CAMBIO Hi A VECTOR MAS ARRIBA
+/*		U[0] += Hi; // h0_ij PROBA 0
+		U[1] += Hi; // h1_ij PROBA 1
 		out.reduce(); //cambio
+*/
+		for(int m = 0; m <= depth; m++){
+			U[0][m] += Hi[m];
+			U[1][m] += Hi[m];
+		}
 
-		Mes & old = Hin[j];
-		eps = l8dist(old, out); //cambio
+		out = copy_matrix(U,out);
+		reduce();
+
+		//Mes & old = Hin[j]; // old SERAN 2 PROBA (0 Y 1) -> old CONTENDRA LAS 2 PROBA ASOCIADAS AL MENSAJE j-esimo DE Hin
+		float *old0 =  Hin[index];
+		float *old1  = Hin[index+1];
+
+		eps = l8dist(old0, old1, out); //cambio
 		// set mes
+		// VER QUE GUARDA EL MENSAJE QUE SE PASA PARA PODER DECODIFICARLO
 		if(vertex < igraph_vector_e(&neighbors,k)){
-			g[e].ij = *out; //ARREGLAR AGREGAR ATTR A LADO
+			// AL MENSAJE g[e].ij SE LE ASOCIA EL MENSAJE out (PQ *out Y NO SOLO out???)
+			// => g[e].ij TENDRA ASOCIADO A H[O] EL H[0] DE out IDEM PARA H[1]
+			igraph_integer_t e;
+			igraph_get_eid(&graph,&e,vertex,igraph_vector_e(&neighbors,k),0,0);
+			
+			//g[e].ij = *out; //ARREGLAR AGREGAR ATTR A LADO
+			for(int m = 0; m <= depth; m++){
+				char name_atr[32];
+				sprintf(name_atr,"ij0_%d",k);
+				igraph_cattribute_EAN_set(&graph,name_atr,e,out[0][m]);
+				
+				sprintf(name_atr,"ij1_%d",k);
+				igraph_cattribute_EAN_set(&graph,name_atr,e,out[1][m]);
+			}
 		}
 		else{
-			g[e].ji = *out; //ARREGLAR AGREGAR ATTR A LADO
+			igraph_integer_t e;
+			igraph_get_eid(&graph,&e,igraph_vector_e(&neighbors,k),vertex,0,0);
+
+			//g[e].ji = *out; //ARREGLAR AGREGAR ATTR A LADO
+			for(int m = 0; m <= depth; m++){
+				char name_atr[32];
+				sprintf(name_atr,"ji0_%d",k);
+				igraph_cattribute_EAN_set(&graph,name_atr,e,out[0][m]);
+				
+				sprintf(name_atr,"ji1_%d",k);
+				igraph_cattribute_EAN_set(&graph,name_atr,e,out[1][m]);
+			}
 		}
 	}
 
@@ -338,7 +565,14 @@ float update(int vertex){ // i = numero que representa al vertice.{
 		Ui[ti] = C[ti].fullmax() - ti * rho; // verrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrr
 	}
 	Ui[depth] =  summinh2 - 1;
-	Hi += Ui;
+	//Hi += Ui;
+	for(int i = 0; i <= depth; i++){
+		Hi[i] += Ui[i];
+	}
+
+	// copio lo de Hin en Mem
+	Mem = copy_matrix(Hin,Mem);
+
 	return eps;
 }
 
@@ -356,14 +590,21 @@ void converge(){
 				err = diff;
 			}
 		}
-///////////AQUIIIIIIIIIIIIIIIIIIIIIIIIIIIIII
 		++dec_ite;
 		int numon2 = 0;
 		for (int i = 0; i < ng; ++i) {
-			Proba & Hi = g[i].H; // VER COMO OBTENER EL ATTR H DEL VERTICE I
+			// g[i].H es proba -> g[i].H[k] poner en Hi[k] (depth sera el largo)
+			//Proba & Hi = g[i].H; // VER COMO OBTENER EL ATTR H DEL VERTICE I
+			float Hi[depth+1];
+			for(int k = 0; k <= depth; k++){
+				char name_atr[32];
+				sprintf(name_atr,"pdH_%d",k);
+				Hi[k] = (float)(igraph_cattribute_VAN(&graph,name_atr,i));
+			}
 			int ti = id_min_element(Hi);
-			double Hmax = Hi[ti];
-			for (int t = 0; t < int(Hi.size()); ++t) {
+			float Hmax = Hi[ti];
+			int len = sizeof(Hi)/sizeof(Hi[0]);
+			for (int t = 0; t < len; ++t) {
 				Hi[t] -= Hmax;;
 			}
 			numon2 += (ti < depth);
@@ -423,12 +664,80 @@ int main(){
 	// agregar atributo a todos los vertices del grafo
 	// atribute t permitira verificar si debe ser eliminado o no
 	igraph_vector_t attr_t_vertex;
+	igraph_vector_t attr_depth_vertex;
 	igraph_vector_init(&attr_t_vertex, 0);
+	igraph_vector_init(&attr_depth_vertex, 0);
 
 	for(int i=0; i < igraph_vcount(&graph); i++){
 		igraph_vector_push_back(&attr_t_vertex,0);
+		igraph_vector_push_back(&attr_depth_vertex,depth+1);
 	}
 	igraph_cattribute_VAN_setv(&graph, "t", &attr_t_vertex);
+	igraph_cattribute_VAN_setv(&graph, "depth", &attr_depth_vertex);
+
+	// set atributos H y extH -> son "depth" atributos
+	for(int i=0; i<=depth; i++){
+		igraph_vector_t attr_pd_vertex;
+		igraph_vector_t attr_pdextH_vertex;
+		char name_atr[32];
+		char name_atr_ext[32];
+
+		igraph_vector_init(&attr_pd_vertex,0);
+		igraph_vector_init(&attr_pdextH_vertex,0);
+		
+		sprintf(name_atr,"pdH_%d",i);
+		sprintf(name_atr_ext,"pdextH_%d",i);
+
+		for(int j=0; j < igraph_vcount(&graph); j++){
+			igraph_vector_push_back(&attr_pd_vertex,0);
+			igraph_vector_push_back(&attr_pdextH_vertex,0);
+		}
+
+		igraph_cattribute_VAN_setv(&graph,name_atr,&attr_pd_vertex);
+		igraph_cattribute_VAN_setv(&graph,name_atr_ext,&attr_pdextH_vertex);
+		
+		igraph_vector_destroy(&attr_pdextH_vertex);
+		igraph_vector_destroy(&attr_pd_vertex);
+	}
+
+	for(int i=0; i<=depth; i++){
+		igraph_vector_t attr_ij0_edge;
+		igraph_vector_t attr_ij1_edge;
+		igraph_vector_t attr_ji0_edge;
+		igraph_vector_t attr_ji1_edge;
+		char name_atr_ij0[32];
+		char name_atr_ji0[32];
+		char name_atr_ij1[32];
+		char name_atr_ji1[32];
+
+		igraph_vector_init(&attr_ij0_edge,0);
+		igraph_vector_init(&attr_ji0_edge,0);
+		igraph_vector_init(&attr_ij1_edge,0);
+		igraph_vector_init(&attr_ji1_edge,0);
+		
+		sprintf(name_atr_ij0,"ij0_%d",i);
+		sprintf(name_atr_ji0,"ji0_%d",i);
+		sprintf(name_atr_ij1,"ij1_%d",i);
+		sprintf(name_atr_ji1,"ji1_%d",i);
+
+
+		for(int j=0; j < igraph_ecount(&graph); j++){
+			igraph_vector_push_back(&attr_ji0_edge,0);
+			igraph_vector_push_back(&attr_ij0_edge,0);
+			igraph_vector_push_back(&attr_ji1_edge,0);
+			igraph_vector_push_back(&attr_ij1_edge,0);
+		}
+
+		igraph_cattribute_EAN_setv(&graph,name_atr_ij0,&attr_ij0_edge);
+		igraph_cattribute_EAN_setv(&graph,name_atr_ji0,&attr_ji0_edge);
+		igraph_cattribute_EAN_setv(&graph,name_atr_ij1,&attr_ij1_edge);
+		igraph_cattribute_EAN_setv(&graph,name_atr_ji1,&attr_ji1_edge);
+		
+		igraph_vector_destroy(&attr_ij1_edge);
+		igraph_vector_destroy(&attr_ij0_edge);
+		igraph_vector_destroy(&attr_ji1_edge);
+		igraph_vector_destroy(&attr_ji0_edge);
+	}
 
 	//plotting = true; // VER
 
@@ -450,7 +759,7 @@ int main(){
 	}
 
 	// SETEAR CARACTERISTICA DE PROBA -> 1 P_[D] POR CADA P_[D] QUE DEBERIA TENER PROBA -> HACER CON FOR ESTO POR CADA NODO
-	// SETEAR DEPTH COMO ATTR NUMERICO PROPIO DE CADA VERTICE 
+	// SETEAR DEPTH COMO ATTR NUMERICO PROPIO DE CADA VERTICE -> DEPTH NUNCA CAMBIA VER SI SE ALTERA EN PROBA O MES
 
 	igraph_vs_vector(&delete_vertex,&rem_vertex);
 	igraph_delete_vertices(&graph,delete_vertex);

@@ -72,7 +72,7 @@ int main(){
 	H = fopen("CoreHD_iter.csv", "w"); // archivo que guardara los R-index (componente mas grande) por iteracion
 
 	/* se lee el archivo con los datos del grafo */
-	F = fopen("red4.edges","r");
+	F = fopen("red3.edges","r");
 	igraph_read_graph_edgelist(&graph,F,0,0); // crea el grafo a partir del archivo con las conexiones
 	fclose(F);
 

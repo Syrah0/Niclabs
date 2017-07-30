@@ -187,7 +187,7 @@ int main(){
 		nodes_neigh = neighborhood(&graph, l+1, max_node); // veo nodos dentro de vecindad l+1 del nodo a eliminar
 		
 		igraph_vector_init(&edges,0);
-	    	igraph_incident(&graph,&edges,max_node,IGRAPH_ALL); // calcula los lados incidentes al nodo a eliminar para aislarlo
+	    igraph_incident(&graph,&edges,max_node,IGRAPH_ALL); // calcula los lados incidentes al nodo a eliminar para aislarlo
 			
 		igraph_es_vector(&rem, &edges); 
 		igraph_delete_edges(&graph, rem); // eliminacion de los vertices incidentes al nodo a eliminar

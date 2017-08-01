@@ -154,6 +154,7 @@ int main(){
 	F = fopen("red3.edges","r");
 	igraph_read_graph_edgelist(&graph,F,0,0); // crea el grafo a partir del archivo con las conexiones
 	fclose(F);
+	igraph_simplify(&graph,1,0,/*edge_comb=*/ 0);
 
 	/* Calcular los grados de los nodos del grafo */
 	igraph_vector_init(&degrees, 0);

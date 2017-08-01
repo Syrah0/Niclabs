@@ -53,6 +53,7 @@ int main(){
 	F = fopen("red3.edges","r");
 	igraph_read_graph_edgelist(&graph,F,0,0); // crea el grafo a partir del archivo con las conexiones
 	fclose(F);
+	igraph_simplify(&graph,1,0,/*edge_comb=*/ 0);
 	total_nodes = igraph_vcount(&graph); // cantidad de nodos del grafo en analisis
 
 //	start_ini = clock();

@@ -20,7 +20,7 @@ int max_component(igraph_t *g){
 
 	/* Se inicializa vector que contendra todas las componentes conexas del grafo */
 	igraph_vector_ptr_init(&complist, 0);
-	igraph_decompose(g,&complist,IGRAPH_WEAK,-1,2); // se realiza la descomposicion del grafo en sus componentes
+	igraph_decompose(g,&complist,IGRAPH_WEAK,-1,0); // se realiza la descomposicion del grafo en sus componentes
 
 	/* Se verifica cual es la componente mas grande */
 	int max = 0;
@@ -36,7 +36,7 @@ int main(){
 	FILE *F, *G, *H;
 	char filename[32];
 	igraph_t graph;
-	igraph_vector_t betweenness;
+	igraph_vector_t betweenness, degrees;
 	//igraph_es_t rem;
 	//double rest;
 	double remove = 0.1; // multiplicador de porcentaje
@@ -44,6 +44,7 @@ int main(){
 	int total_nodes; // cantidad de nodos del grafo original
 	clock_t start, end, start_ini, end_ini;
 	double time_used;
+	double time_used_total = 0;
 
 	G = fopen("Betweenness_times.csv","w"); // archivo que guardara los tiempo de ejecucion por iteracion
 	H = fopen("Betweenness_iter.csv", "w"); // archivo que guardara los R-index (componente mas grande) por iteracion
@@ -54,7 +55,7 @@ int main(){
 	fclose(F);
 	total_nodes = igraph_vcount(&graph); // cantidad de nodos del grafo en analisis
 
-	start_ini = clock();
+//	start_ini = clock();
 
 // VER EL IGRAPH_SIMPLIFY!!!!
 
@@ -63,6 +64,13 @@ int main(){
 	//igraph_vector_init(&weights,igraph_ecount(&graph));
 	while(1){
 		start = clock();
+		/*igraph_vector_init(&degrees,0);
+		igraph_degree(&graph, &degrees, igraph_vss_all(), IGRAPH_ALL, IGRAPH_LOOPS);
+		if(igraph_vector_max(&degrees) == 0){
+			igraph_vector_destroy(&degrees);
+			break;
+		}
+		igraph_vector_destroy(&degrees);*/
 		igraph_vector_init(&betweenness, 0);
 		igraph_betweenness(&graph, &betweenness, igraph_vss_all(), 0,/*weights=*/ 0, 0);  // calculo de los grados de cada nodo del grafo
 		node = igraph_vector_which_max(&betweenness);
@@ -75,6 +83,7 @@ int main(){
 		giant_comp = max_component(&graph);
 
 		time_used = ((double) (end - start))/CLOCKS_PER_SEC;
+		time_used_total += time_used;
 		char output[50];		
 
 		sprintf(output, "%f", time_used);
@@ -106,17 +115,17 @@ int main(){
 		fputs(output,H);
 		putc('\n',H);
 
-		if(giant_comp == 2){
+		if(giant_comp == 1){
 			break;
 		}
 		iter++;		
 	}
-	end_ini = clock();
+//	end_ini = clock();
 
-	time_used = ((double) (end_ini - start_ini))/CLOCKS_PER_SEC;
+//	time_used = ((double) (end_ini - start_ini))/CLOCKS_PER_SEC;
 	char output[50];		
 		
-	sprintf(output, "%f", time_used);
+	sprintf(output, "%f", time_used_total);
 	fprintf(stderr, "%s\n", output);
 
 	fclose(G);

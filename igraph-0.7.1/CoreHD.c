@@ -67,12 +67,13 @@ int main(){
 	int total_nodes; // cantidad de nodos del grafo original
 	clock_t start, end, start_ini, end_ini;
 	double time_used;
+	double time_used_total = 0;
 
 	G = fopen("CoreHD_times.csv","w"); // archivo que guardara los tiempo de ejecucion por iteracion
 	H = fopen("CoreHD_iter.csv", "w"); // archivo que guardara los R-index (componente mas grande) por iteracion
 
-	start_ini = clock();
-
+//	start_ini = clock();
+	start = clock();
 	/* se lee el archivo con los datos del grafo */
 	F = fopen("red3.edges","r");
 	igraph_read_graph_edgelist(&graph,F,0,0); // crea el grafo a partir del archivo con las conexiones
@@ -82,8 +83,7 @@ int main(){
 	fprintf(stderr, "%i\n", total_nodes);
 
 	igraph_copy(&gaux, &graph); // gaux representara los 2-core formados	
-
-	start = clock();	
+	
 	while(1){
 
 		/* calculo de los grados de cada nodo del grafo */
@@ -134,6 +134,7 @@ int main(){
 
 		end = clock();
 		time_used = ((double) (end - start))/CLOCKS_PER_SEC;
+		time_used_total += time_used;
 		char output[50];		
 		
 		sprintf(output, "%f", time_used);
@@ -211,12 +212,12 @@ int main(){
 		}
 	}
 
-	end_ini = clock();
+//	end_ini = clock();
 
-	time_used = ((double) (end_ini - start_ini))/CLOCKS_PER_SEC;
+//	time_used = ((double) (end_ini - start_ini))/CLOCKS_PER_SEC;
 	char output[50];		
 		
-	sprintf(output, "%f", time_used);
+	sprintf(output, "%f", time_used_total);
 	fprintf(stderr, "%s\n", output);
 
 	fclose(G);

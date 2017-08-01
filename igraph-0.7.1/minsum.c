@@ -28,12 +28,6 @@ struct ConvexCavity {
 	igraph_vector_t H;
 	float m1, m2, SH;
 	int idxm1;
-
-	//void (*reset)(struct ConvexCavity *);
-	/*void (*push_back)(struct ConvexCavity *, float h0, float h1);
-	float (*cavityval)(struct ConvexCavity *, int i);
-	float (*cavitymax)(struct ConvexCavity *, int i);
-	float (*fullmax)(struct ConvexCavity *);*/
 };
 
 typedef struct{
@@ -53,13 +47,173 @@ typedef struct{
 #define noise 1e-7
 #define mu 0.1
 #define rho 1e-5
-int rein = 0;
+#define inf 1e20
+float rein = (float)0.0;
 float **Mem = NULL;
 float **out = NULL;
 float Ui[depth+1];
 float L0[depth+1];
 float G1[depth+1];
+int rowM = 0;
+int rowO = 0;
 igraph_t graph;
+
+float min(float a, float b){
+	if(a>b){
+		return b;
+	}
+	else{
+		return a;
+	}
+}
+
+float max(float a, float b){
+	if(a<b){
+		return b;
+	}
+	else{
+		return a;
+	}
+}
+
+struct ConvexCavity reset(struct ConvexCavity convex) {
+	//fprintf(stderr, "AQUIII\n");
+	igraph_vector_init(&(convex.H),0);
+	convex.m1 = inf;
+	convex.m2 = inf;
+	convex.idxm1 = 0;
+	convex.SH = 0;
+	return convex;
+}
+
+struct ConvexCavity push_back(struct ConvexCavity convex,float h0, float h1) {
+	igraph_vector_push_back(&(convex.H),h1);
+	convex.SH += h1;
+	float h01 = h0 - h1;
+	if (h01 <= (convex.m1)) {
+		convex.m2 = convex.m1;
+		convex.m1 = h01;
+		convex.idxm1 = ((int)igraph_vector_size(&(convex.H))) - 1;
+	} 
+	else if (h01 < (convex.m2)) {
+		convex.m2 = h01;
+	}
+	return convex;
+}
+
+float cavityval(struct ConvexCavity convex,int i) {
+	return (convex.SH) - ((float)igraph_vector_e(&(convex.H),i));
+}
+
+float cavitymax(struct ConvexCavity convex,int i) {
+	return (convex.SH) - ((float)igraph_vector_e(&(convex.H),i)) + min((float)0.0, i == (convex.idxm1) ? (convex.m2) : (convex.m1));
+}
+
+float fullmax(struct ConvexCavity convex) {
+	return (convex.SH) + min((float)0.0, (convex.m1));
+}
+
+int id_min_element(float *H, int len){
+	float min = H[0];
+	int t_min = 0;
+	for(int i=1; i < len; i++){
+		if(H[i] < min){
+			min = H[i];
+			t_min = i;
+		}
+	}
+	return t_min;
+}
+
+
+float **copy_matrix(float **M, float **Hin, int row_Mem, int row_Hin){
+
+	if(row_Mem <= row_Hin){
+		for(int i=0; i < row_Mem; i++){
+			for(int j=0; j <= depth; j++){
+				Hin[i][j] = M[i][j];
+			}
+		}
+		if(row_Mem != row_Hin){ //rellenar el resto de Hin con 0's
+			for(int i=row_Mem; i < row_Hin; i++){
+				for(int j=0; j <= depth; j++){
+					Hin[i][j] = 0;
+				}
+			}
+		}
+	}
+	else{
+		for(int i=0; i < row_Hin; i++){
+			for(int j=0; j <= depth; j++){
+				Hin[i][j] = M[i][j];
+			}
+		}
+	}
+
+	return Hin;
+}
+
+float** free_matrix(float **M,int row_Mem){
+	//int row_Mem = sizeof(M)/sizeof(M[0]);
+	for(int i=0; i < row_Mem; i++){
+		free(M[i]);
+	}
+	free(M);
+	M = NULL;
+	return M;
+}
+
+float** init(float **M, int size){
+	if(M == NULL){ //init M
+		M = (float **)malloc((2*size)*sizeof(float*));
+
+		for(int i = 0; i < (2*size); i++){
+			M[i] = (float*)malloc((depth+1)*sizeof(float));
+		}
+
+		for(int i=0; i < (2*size); i++){
+			for(int j=0; j <= depth; j++){
+				M[i][j] = 0;
+			}
+		}
+	}
+	return M;
+}
+
+float minimum() { // ver cambio a minimo
+	float m = inf;
+	//int const depth = size();
+	for (int i = 0; i < 2; i++)
+		for (int j = 0; j <= depth; j++)
+			m = min(m, out[i][j]);
+	return m;
+}
+
+float** reduce(float **out){
+	float m = minimum();
+	//int const depth = size();
+	for (int i = 0; i < 2; i++)
+		for (int j = 0; j <= depth; j++)
+			out[i][j] -= m; // revisar si es resta
+	return out;
+}
+
+float l8dist_aux(float *old, float *out){
+	float n = 0;
+	for(int i = depth; i >= 0; i--){
+		n = max(n, fabs(old[i] - out[i]));
+		//fprintf(stderr, "n: %lf\n", n);
+	}
+	return n;
+}
+
+float l8dist(float *old0, float *old1, float **out){ 
+	float l8 = 0;
+	l8 = max(l8,l8dist_aux(old0,out[0]));
+	l8 = max(l8,l8dist_aux(old1,out[1]));
+	return l8;
+}
+
 
 void propagate(){
 	int theta[igraph_vcount(&graph)];
@@ -112,74 +266,6 @@ void propagate(){
 	}
 }
 
-int min(int a, int b){
-	if(a>b){
-		return b;
-	}
-	else{
-		return a;
-	}
-}
-
-int max(int a, int b){
-	if(a<b){
-		return b;
-	}
-	else{
-		return a;
-	}
-}
-
-struct ConvexCavity reset(struct ConvexCavity convex) {
-	//fprintf(stderr, "AQUIII\n");
-	igraph_vector_init(&(convex.H),0);
-	convex.m1 = INFINITY;
-	convex.m2 = INFINITY;
-	convex.idxm1 = 0;
-	convex.SH = 0;
-	return convex;
-}
-
-struct ConvexCavity push_back(struct ConvexCavity convex,float h0, float h1) {
-	igraph_vector_push_back(&(convex.H),h1);
-	convex.SH += h1;
-	float h01 = h0 - h1;
-	if (h01 <= (convex.m1)) {
-		convex.m2 = convex.m1;
-		convex.m1 = h01;
-		convex.idxm1 = ((int)igraph_vector_size(&(convex.H))) - 1;
-	} 
-	else if (h01 < (convex.m2)) {
-		convex.m2 = h01;
-	}
-	return convex;
-}
-
-float cavityval(struct ConvexCavity convex,int i) {
-	return (convex.SH) - ((float)igraph_vector_e(&(convex.H),i));
-}
-
-float cavitymax(struct ConvexCavity convex,int i) {
-	return (convex.SH) - ((float)igraph_vector_e(&(convex.H),i)) + min(0, i == (convex.idxm1) ? (convex.m2) : (convex.m1));
-}
-
-float fullmax(struct ConvexCavity convex) {
-	return (convex.SH) + min(0, (convex.m1));
-}
-
-int id_min_element(float *H){
-	float min = H[0];
-	int t_min = 0;
-	int len = sizeof(H)/sizeof(H[0]);
-	for(int i=1; i < len; i++){
-		if(H[i] < min){
-			min = H[i];
-			t_min = i;
-		}
-	}
-	return t_min;
-}
-
 check_type check_v() {
 	check_type ck = {0,0,0,0,0};
 	for (int j = 0; j < igraph_vcount(&graph); ++j) {
@@ -221,96 +307,6 @@ check_type check_v() {
 	return ck;
 }
 
-float **copy_matrix(float **M, float **Hin){
-
-
-	int row_Mem = sizeof(M)/sizeof(M[0]);
-	int row_Hin = sizeof(Hin)/sizeof(Hin[0]);
-
-	if(row_Mem <= row_Hin){
-		for(int i=0; i < row_Mem; i++){
-			for(int j=0; j <= depth; j++){
-				Hin[i][j] = M[i][j];
-			}
-		}
-		if(row_Mem != row_Hin){ //rellenar el resto de Hin con 0's
-			for(int i=row_Mem; i < row_Hin; i++){
-				for(int j=0; j <= depth; j++){
-					Hin[i][j] = 0;
-				}
-			}
-		}
-	}
-	else{
-		for(int i=0; i < row_Hin; i++){
-			for(int j=0; j <= depth; j++){
-				Hin[i][j] = M[i][j];
-			}
-		}
-	}
-
-	return Hin;
-}
-
-float** free_matrix(float **M){
-	int row_Mem = sizeof(M)/sizeof(M[0]);
-	for(int i=0; i < row_Mem; i++){
-		free(M[i]);
-	}
-	free(M);
-	M = NULL;
-	return M;
-}
-
-float** init(float **M, int size){
-	if(M == NULL){ //init M
-		M = (float **)malloc((2*size)*sizeof(float*));
-
-		for(int i = 0; i < (2*size); i++){
-			M[i] = (float*)malloc((depth+1)*sizeof(float));
-		}
-
-		for(int i=0; i < (2*size); i++){
-			for(int j=0; j <= depth; j++){
-				M[i][j] = 0;
-			}
-		}
-	}
-	return M;
-}
-
-float minimum() { // ver cambio a minimo
-	float m = INFINITY;
-	//int const depth = size();
-	for (int i = 0; i < 2; i++)
-		for (int j = 0; j <= depth; j++)
-			m = min(m, out[i][j]);
-	return m;
-}
-
-void reduce(){
-	float m = minimum();
-	//int const depth = size();
-	for (int i = 0; i < 2; i++)
-		for (int j = 0; j <= depth; j++)
-			out[i][j] -= m; // revisar si es resta
-}
-
-float l8dist_aux(float *old, float *out){
-	float n = 0;
-	for(int i = depth+1; i >= 0; i--){
-		n = max(n, fabs(old[i] - out[i]));
-	}
-	return n;
-}
-
-float l8dist(float *old0, float *old1, float **out){ 
-	float l8 = 0;
-	l8 = max(l8,l8dist_aux(old0,out[0]));
-	l8 = max(l8,l8dist_aux(old1,out[1]));
-	return l8;
-}
-
 float update(int vertex){ // i = numero que representa al vertice.{
 	igraph_vector_t degrees;
 	igraph_vector_init(&degrees, 0);
@@ -322,7 +318,7 @@ float update(int vertex){ // i = numero que representa al vertice.{
 		for(int i=0; i <= depth; i++){
 			char name_atr[32];
 			sprintf(name_atr,"pdH_%d",i);
-			igraph_cattribute_VAN_set(&graph,name_atr,vertex,INFINITY);
+			igraph_cattribute_VAN_set(&graph,name_atr,vertex,inf);
 		}
 		igraph_cattribute_VAN_set(&graph,"pdH_1",vertex,0);
 		return 0;
@@ -337,6 +333,13 @@ float update(int vertex){ // i = numero que representa al vertice.{
 	Mem = init(Mem, n); // para caso inicial
 	out = init(out, 1); // para caso inicial
 	
+	if(rowM == 0){
+		rowM = 2*n;
+	}
+	if(rowO == 0){
+		rowO = 2;
+	}
+
 	float **Hin = NULL;
 	Hin = init(Hin, n);
 	
@@ -344,15 +347,16 @@ float update(int vertex){ // i = numero que representa al vertice.{
 	float minh2[n];
 
 	for(int i=0; i<n; i++){
-		minh[i] = INFINITY;
-		minh2[i] = INFINITY;
+		minh[i] = inf;
+		minh2[i] = inf;
 	}
 
-	Hin = copy_matrix(Mem,Hin);
+	Hin = copy_matrix(Mem,Hin,rowM,2*n);
 
-	Mem = free_matrix(Mem); // se libera dado que el siguiente Mem puede tener otras dimensiones
+	Mem = free_matrix(Mem,rowM); // se libera dado que el siguiente Mem puede tener otras dimensiones
 
 	Mem = init(Mem, n); // Se crea Mem con dimensiones correctas
+	rowM = 2*n;
 
 	float summinh = 0;
 	float summinh2 = 0;
@@ -387,7 +391,7 @@ float update(int vertex){ // i = numero que representa al vertice.{
 			//Hin[j] = g[e].ij; //ARREGLAR	
 
 			igraph_integer_t e;
-			igraph_get_eid(&graph,&e,igraph_vector_e(&neighbors,k),vertex,0,0);
+			igraph_get_eid(&graph,&e,vertex,igraph_vector_e(&neighbors,k),0,0);
 			// MES SERA UNA MATRIZ DE 2X(DEPTH+1) TQ MES[0] = H[0] Y MES[1] = H[1]
 			for(int i=0; i<=depth; i++){
 				char name_atr[32];
@@ -408,9 +412,9 @@ float update(int vertex){ // i = numero que representa al vertice.{
 			//L0[ti] = min(L0[ti - 1],h[0][ti]); // QUIERO EL MINIMO!!
 			L0[ti] = min(L0[ti - 1],h0[ti]); // QUIERO EL MINIMO!!
 		}
-		G1[depth] = INFINITY;
+		G1[depth] = inf;
 		// REVISAR COMO ACTUA EL ti PQ POR CADA ti 
-		for (int ti = depth; ti >= 0; --ti){
+		for (int ti = depth-1; ti >= 0; --ti){
 			G1[ti] = min(G1[ti + 1],h1[ti + 1]); // VER PQ ti + 1 Y NO ti
 		}
 
@@ -448,14 +452,14 @@ float update(int vertex){ // i = numero que representa al vertice.{
 	igraph_vector_init(&neighbors,0);
 	igraph_neighbors(&graph,&neighbors,vertex,IGRAPH_OUT);
 	int size = igraph_vector_size(&neighbors);
-	for (int k=0; k < size; k++) {
+	for (int k=0; k < size; k++, ++j) {
 		//fprintf(stderr, "Aqui\n");
 		int index = 2*j;
 		int neigh = (int)igraph_vector_e(&neighbors,k);
 		float csumminh = summinh - minh[j]; // VER PARA QUE SIRVE
 		float **U = NULL;
 		U = init(U,1);
-		U = copy_matrix(out,U);
+		U = copy_matrix(out,U,rowO,2);
 
 		//Proba * U = out.H; // out es un mensaje => Contine 2 proba (0 y 1) cada una de largo depth+1
 		// U contendra las dos proba de out (0 y 1) cada una de largo depth+1
@@ -464,7 +468,7 @@ float update(int vertex){ // i = numero que representa al vertice.{
 
 		// case ti = 0
 		U[0][0] = csumminh - mu; // h0_ij(0)
-		U[1][0] = INFINITY; // h1_ij(0)
+		U[1][0] = inf; // h1_ij(0)
 
 		// case 0 < ti <= d
 		for (int ti = 1; ti < depth; ++ti) {
@@ -482,17 +486,18 @@ float update(int vertex){ // i = numero que representa al vertice.{
 			U[1][m] += Hi[m];
 		}
 
-		out = copy_matrix(U,out);
-		reduce();
+		out = copy_matrix(U,out,2,rowO);
+		out = reduce(out);
 
 		//Mes & old = Hin[j]; // old SERAN 2 PROBA (0 Y 1) -> old CONTENDRA LAS 2 PROBA ASOCIADAS AL MENSAJE j-esimo DE Hin
 		float *old0 =  Hin[index];
 		float *old1  = Hin[index+1];
 
 		eps = l8dist(old0, old1, out); //cambio
+		//fprintf(stderr, "%lf\n", eps);
 		// set mes
 		// VER QUE GUARDA EL MENSAJE QUE SE PASA PARA PODER DECODIFICARLO
-		if(vertex < neigh){
+		if(vertex > neigh){
 			// AL MENSAJE g[e].ij SE LE ASOCIA EL MENSAJE out (PQ *out Y NO SOLO out???)
 			// => g[e].ij TENDRA ASOCIADO A H[O] EL H[0] DE out IDEM PARA H[1]
 			igraph_integer_t e;
@@ -500,25 +505,25 @@ float update(int vertex){ // i = numero que representa al vertice.{
 			
 			for(int m = 0; m <= depth; m++){
 				char name_atr[32];
-				sprintf(name_atr,"ij0_%d",k);
+				sprintf(name_atr,"ji0_%d",m);
 				igraph_cattribute_EAN_set(&graph,name_atr,e,out[0][m]);
-				sprintf(name_atr,"ij1_%d",k);
+				sprintf(name_atr,"ji1_%d",m);
 				igraph_cattribute_EAN_set(&graph,name_atr,e,out[1][m]);
 			}
 		}
 		else{
 			igraph_integer_t e;
-			igraph_get_eid(&graph,&e,neigh,vertex,0,0);
+			igraph_get_eid(&graph,&e,vertex,neigh,0,0);
 			for(int m = 0; m <= depth; m++){
 				char name_atr[32];
-				sprintf(name_atr,"ji0_%d",k);
+				sprintf(name_atr,"ij0_%d",m);
 				igraph_cattribute_EAN_set(&graph,name_atr,e,out[0][m]);
 				
-				sprintf(name_atr,"ji1_%d",k);
+				sprintf(name_atr,"ij1_%d",m);
 				igraph_cattribute_EAN_set(&graph,name_atr,e,out[1][m]);
 			}
 		}
-		U = free_matrix(U);
+		U = free_matrix(U,2);
 	}
 	igraph_vector_destroy(&degrees);
 
@@ -530,26 +535,53 @@ float update(int vertex){ // i = numero que representa al vertice.{
 	}
 	Ui[depth] =  summinh2 - 1;
 	for(int i = 0; i <= depth; i++){
+		char name_atr[32];
+		sprintf(name_atr,"pdH_%d",i);
 		Hi[i] += Ui[i];
+		igraph_cattribute_VAN_set(&graph,name_atr,vertex,Hi[i]);
 	}
 
 	// copio lo de Hin en Mem
-	Mem = copy_matrix(Hin,Mem);
-	Hin = free_matrix(Hin);
+	Mem = copy_matrix(Hin,Mem,2*n,rowM);
+	Hin = free_matrix(Hin,2*n);
 
 	return eps;
+}
+
+int* shuffle(int *array, size_t n)
+{
+    if (n > 1) 
+    {
+        size_t i;
+        for (i = 0; i < n - 1; i++) 
+        {
+          size_t j = i + rand() / (RAND_MAX / (n - i) + 1);
+          int t = array[j];
+          array[j] = array[i];
+          array[i] = t;
+        }
+    }
+    return array;
 }
 
 void converge(){
 	int ite = 0;
 	float err = 0.0;
 	int dec_ite = 0;
+	int node = igraph_vcount(&graph);
+	int *permutacion = (int *)malloc(node*sizeof(int));
+	clock_t start, end;
+	for(int i = 0; i < node; i++){
+		permutacion[i] = i;
+	}
 	do{
+		start = clock();
+		permutacion = shuffle(permutacion,node);
 		rein = beta * ite; // tau*gamma
 		err = 0;
 		int ng = igraph_vcount(&graph); // g grafo, ng numero de vertices 
 		for (int i = 0; i < ng; ++i) {
-			float diff = update(i); // VER REAL_T
+			float diff = update(permutacion[i]); // VER REAL_T
 			//fprintf(stderr, "AQUI2\n" );
 			if (diff > err){
 				err = diff;
@@ -566,11 +598,14 @@ void converge(){
 				sprintf(name_atr,"pdH_%d",k);
 				Hi[k] = (float)(igraph_cattribute_VAN(&graph,name_atr,i));
 			}
-			int ti = id_min_element(Hi);
+			int ti = id_min_element(Hi,depth+1);
 			float Hmax = Hi[ti];
-			int len = sizeof(Hi)/sizeof(Hi[0]);
-			for (int t = 0; t < len; ++t) {
-				Hi[t] -= Hmax;;
+			//int len = sizeof(Hi)/sizeof(Hi[0]);
+			for (int t = 0; t <= depth; ++t) {
+				char name_atr[32];
+				sprintf(name_atr,"pdH_%d",t);
+				Hi[t] -= Hmax;
+				igraph_cattribute_VAN_set(&graph,name_atr,i,Hi[t]);
 			}
 			numon2 += (ti < depth);
 
@@ -588,10 +623,28 @@ void converge(){
 		if (ck.num_bad){
 			dec_ite = 0;
 		}
+		end = clock();
 		fprintf(stderr, "IT: %d/%d | DEC: %d/%d | ERR: %lf/%lf | ON: %d | S: %d | ON2: %d | BAD: %d | COST: %lf | EN: %lf\n",ite,maxit,dec_ite,maxdec,err,tolerance,ck.num_on,ck.num_seeds,numon2,ck.num_bad,ck.tot_cost,ck.tot_energy);
 	}while (err > tolerance && ++ite < maxit && dec_ite < maxdec);
 	//if (plotting)
 	propagate();
+	free(permutacion);
+}
+
+/* Se encarga de seleccionar los nodos que se deben eliminar para conformar el 2-core */
+igraph_vector_t coreCal(igraph_vector_t *res, int val){
+	igraph_vector_t remaux;
+
+	/* inicializa el vector que contendra los nodos a remover */
+	igraph_vector_init(&remaux, 0);
+
+	/* se revisa los nodos de remover y se agregar al vector */
+	for(int i=0; i<igraph_vector_size(res); i++){
+		if((int)igraph_vector_e(res,i) != 0 && (int)igraph_vector_e(res,i) < val){
+			igraph_vector_push_back(&remaux, i); // se agrega nodo que debe ser eliminado
+		}
+	}	
+	return remaux;
 }
 
 
@@ -599,12 +652,13 @@ int main(){
 
 	FILE *F, *G, *H;
 	char filename[32];
-	igraph_vector_t degrees, nodes, CIvalues;
-	double remove = 0.1; // multiplicador de porcentaje
-	double rem_nodes = 0.0; // cantidad de nodos removidos
-	int total_nodes; // total de nodos del grafo original
+	igraph_vector_t degrees, nodes, remaux, alledges;
+	igraph_es_t rem;
+	//double remove = 0.1; // multiplicador de porcentaje
+	//double rem_nodes = 0.0; // cantidad de nodos removidos
+	//int total_nodes; // total de nodos del grafo original
 	//int T = 35; // limite de la iteracion
-	clock_t start, end;
+	clock_t start_ini, end_ini;
 	double time_used;
 
 	G = fopen("MinSum_times.csv","w"); // archivo que guardara los tiempo de ejecucion por iteracion
@@ -614,7 +668,7 @@ int main(){
 	igraph_i_set_attribute_table(&igraph_cattribute_table);
 
 	/* Se lee el archivo que contiene las conexiones de los nodos */
-	F = fopen("red3.edges","r");
+	F = fopen("red5.edges","r");
 	igraph_read_graph_edgelist(&graph,F,0,0); // crea el grafo a partir del archivo con las conexiones
 	fclose(F);
 	// agregar atributo a todos los vertices del grafo
@@ -658,6 +712,43 @@ int main(){
 		igraph_vector_destroy(&attr_pd_vertex);
 	}
 
+	while(1){
+
+		/* calculo de los grados de cada nodo del grafo */
+		igraph_vector_init(&alledges,0);
+		igraph_vector_init(&degrees, 0);
+		igraph_degree(&graph, &degrees, igraph_vss_all(), IGRAPH_ALL, IGRAPH_LOOPS); 
+
+		/* calcula que lados se deben eliminar para obtener el 2-core */
+		remaux  = coreCal(&degrees, 2);
+		//print_vector(&remaux, stdout);
+
+		if(igraph_vector_size(&remaux) == 0){
+			break;
+		}
+		
+
+		for(int i=0; i<igraph_vector_size(&remaux); i++){
+			igraph_vector_t edges;
+			igraph_vector_init(&edges,0);
+			igraph_incident(&graph,&edges,igraph_vector_e(&remaux,i),IGRAPH_ALL);
+			for(int j=0; j<igraph_vector_size(&edges); j++){
+				igraph_vector_push_back(&alledges, igraph_vector_e(&edges,j));
+			}
+			igraph_vector_destroy(&edges);
+		}
+
+		igraph_es_vector(&rem, &alledges); // crea el tipo de vector utilizado para llevar a cabo la remosion 
+		
+		/* proceso de eliminacion de los lados seleccionados del grafo */
+		igraph_delete_edges(&graph, rem);
+
+		igraph_vector_destroy(&degrees);
+		igraph_es_destroy(&rem);
+		//igraph_vector_destroy(&remaux);
+		igraph_vector_destroy(&alledges);
+	}
+
 	for(int i=0; i<=depth; i++){
 		igraph_vector_t attr_ij0_edge;
 		igraph_vector_t attr_ij1_edge;
@@ -696,6 +787,7 @@ int main(){
 		igraph_vector_destroy(&attr_ji1_edge);
 		igraph_vector_destroy(&attr_ji0_edge);
 	}
+
 
 	//plotting = true; // VER
 

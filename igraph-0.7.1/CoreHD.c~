@@ -72,7 +72,7 @@ int main(){
 	H = fopen("CoreHD_iter.csv", "w"); // archivo que guardara los R-index (componente mas grande) por iteracion
 
 	/* se lee el archivo con los datos del grafo */
-	F = fopen("red4.edges","r");
+	F = fopen("red3.edges","r");
 	igraph_read_graph_edgelist(&graph,F,0,0); // crea el grafo a partir del archivo con las conexiones
 	fclose(F);
 
@@ -211,9 +211,15 @@ int main(){
 
 	fclose(G);
 	fclose(H);
-	fprintf(stderr, "%i %i\n", (int)igraph_vcount(&gaux), (int)igraph_ecount(&gaux));
+	//fprintf(stderr, "%i %i\n", (int)igraph_vcount(&gaux), (int)igraph_ecount(&gaux));
 	igraph_destroy(&gaux);
 	fprintf(stderr, "%i %i\n", (int)igraph_vcount(&graph), (int)igraph_ecount(&graph));
+	
+	sprintf(filename,"grafoFinal_CoreHD.edges"); // nombre del archivo donde estaran los resultados
+	F = fopen(filename,"w");
+        igraph_write_graph_edgelist(&graph,F); // escritura
+	fclose(F);
+
 	printf("VACIO\n");
 
 	/* realizar tree-breaking o desmantelamiento */

@@ -65,11 +65,13 @@ int main(){
 	double remove = 0.1; // multiplicador de porcentaje
 	double rem_nodes = 0.0; // cantidad de nodos removidos
 	int total_nodes; // cantidad de nodos del grafo original
-	clock_t start, end;
+	clock_t start, end, start_ini, end_ini;
 	double time_used;
 
 	G = fopen("CoreHD_times.csv","w"); // archivo que guardara los tiempo de ejecucion por iteracion
 	H = fopen("CoreHD_iter.csv", "w"); // archivo que guardara los R-index (componente mas grande) por iteracion
+
+	start_ini = clock();
 
 	/* se lee el archivo con los datos del grafo */
 	F = fopen("red3.edges","r");
@@ -209,11 +211,32 @@ int main(){
 		}
 	}
 
+	end_ini = clock();
+
+	time_used = ((double) (end_ini - start_ini))/CLOCKS_PER_SEC;
+	char output[50];		
+		
+	sprintf(output, "%f", time_used);
+	fprintf(stderr, "%s\n", output);
+
 	fclose(G);
 	fclose(H);
-	fprintf(stderr, "%i %i\n", (int)igraph_vcount(&gaux), (int)igraph_ecount(&gaux));
+
+	G = fopen("TiempoEjecución_CoreHD.txt","w");
+
+	fputs(output,G);
+
+	fclose(G);	
+
+	//fprintf(stderr, "%i %i\n", (int)igraph_vcount(&gaux), (int)igraph_ecount(&gaux));
 	igraph_destroy(&gaux);
 	fprintf(stderr, "%i %i\n", (int)igraph_vcount(&graph), (int)igraph_ecount(&graph));
+	
+	//sprintf(filename,"grafoFinal_CoreHD.edges"); // nombre del archivo donde estaran los resultados
+	F = fopen("grafoFinal_CoreHD.edges","w");
+        igraph_write_graph_edgelist(&graph,F); // escritura
+	fclose(F);
+
 	printf("VACIO\n");
 
 	/* realizar tree-breaking o desmantelamiento */

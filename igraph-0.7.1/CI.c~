@@ -187,7 +187,7 @@ int main(){
 		nodes_neigh = neighborhood(&graph, l+1, max_node); // veo nodos dentro de vecindad l+1 del nodo a eliminar
 		
 		igraph_vector_init(&edges,0);
-	    igraph_incident(&graph,&edges,max_node,IGRAPH_ALL); // calcula los lados incidentes al nodo a eliminar para aislarlo
+	    	igraph_incident(&graph,&edges,max_node,IGRAPH_ALL); // calcula los lados incidentes al nodo a eliminar para aislarlo
 			
 		igraph_es_vector(&rem, &edges); 
 		igraph_delete_edges(&graph, rem); // eliminacion de los vertices incidentes al nodo a eliminar
@@ -213,7 +213,7 @@ int main(){
 		/* Proceso de escritura del nuevo grafo tras cierto porcentaje de eliminacion de nodos */
 		rem_nodes += 1.0; // aumento cantidad de nodos removidos
 		if(rem_nodes == ceil(total_nodes*remove)){
-			sprintf(filename,"grafo%d_CI.edges",(total_nodes - (int)rem_nodes)); // nombre del archivo donde estaran los resultados
+		    sprintf(filename,"grafo%d_CI.edges",(total_nodes - (int)rem_nodes)); // nombre del archivo donde estaran los resultados
 		    F = fopen(filename,"w");
 		    igraph_write_graph_edgelist(&gaux,F); // escritura
 		    fclose(F);
@@ -283,6 +283,12 @@ int main(){
 	fclose(H);
 	fclose(G);
 	fprintf(stderr, "%i %i\n", igraph_vcount(&graph), igraph_ecount(&graph));
+
+	sprintf(filename,"grafoFinal_CI.edges"); // nombre del archivo donde estaran los resultados
+	F = fopen(filename,"w");
+        igraph_write_graph_edgelist(&graph,F); // escritura
+	fclose(F);	
+
 	printf("VACIO\n");
 
 	return 0;

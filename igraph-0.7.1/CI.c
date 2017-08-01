@@ -141,11 +141,13 @@ int main(){
 	double remove = 0.1; // multiplicador de porcentaje
 	double rem_nodes = 0.0; // cantidad de nodos removidos
 	int total_nodes; // cantidad de nodos del grafo original
-	clock_t start, end;
+	clock_t start, end, start_ini, end_ini;
 	double time_used;
 
 	G = fopen("CI_times.csv","w"); // archivo que guardara los tiempo de ejecucion por iteracion
 	H = fopen("CI_iter.csv", "w"); // archivo que guardara los R-index (componente mas grande) por iteracion
+
+	start_ini = clock();
 
 	/* Se lee el archivo que contiene las conexiones de los nodos */
 	F = fopen("red3.edges","r");
@@ -213,7 +215,7 @@ int main(){
 		/* Proceso de escritura del nuevo grafo tras cierto porcentaje de eliminacion de nodos */
 		rem_nodes += 1.0; // aumento cantidad de nodos removidos
 		if(rem_nodes == ceil(total_nodes*remove)){
-			sprintf(filename,"grafo%d_CI.edges",(total_nodes - (int)rem_nodes)); // nombre del archivo donde estaran los resultados
+		    sprintf(filename,"grafo%d_CI.edges",(total_nodes - (int)rem_nodes)); // nombre del archivo donde estaran los resultados
 		    F = fopen(filename,"w");
 		    igraph_write_graph_edgelist(&gaux,F); // escritura
 		    fclose(F);
@@ -280,9 +282,29 @@ int main(){
 		x = (igraph_vector_sum(&CIvalues)/(N * k)); // calculo de la nueva base
 		rest = pow(x,y);
 	}
+	end_ini = clock();
+
+	time_used = ((double) (end_ini - start_ini))/CLOCKS_PER_SEC;
+	char output[50];		
+		
+	sprintf(output, "%f", time_used);
+	fprintf(stderr, "%s\n", output);
+
+	fclose(G);
 	fclose(H);
+
+	G = fopen("TiempoEjecución_CI.txt","w");
+
+	fputs(output,G);
+
 	fclose(G);
 	fprintf(stderr, "%i %i\n", igraph_vcount(&graph), igraph_ecount(&graph));
+
+	//sprintf(filename,"grafoFinal_CI.edges"); // nombre del archivo donde estaran los resultados
+	F = fopen("grafoFinal_CI.edges","w");
+        igraph_write_graph_edgelist(&graph,F); // escritura
+	fclose(F);	
+
 	printf("VACIO\n");
 
 	return 0;

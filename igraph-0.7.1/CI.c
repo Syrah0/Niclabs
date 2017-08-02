@@ -304,7 +304,7 @@ int main(){
 
 	//sprintf(filename,"grafoFinal_CI.edges"); // nombre del archivo donde estaran los resultados
 	F = fopen("grafoFinal_CI.edges","w");
-        igraph_write_graph_edgelist(&graph,F); // escritura
+    igraph_write_graph_edgelist(&graph,F); // escritura
 	fclose(F);	
 
 	printf("VACIO\n");

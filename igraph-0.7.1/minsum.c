@@ -25,7 +25,7 @@
 
 
 struct ConvexCavity {
-	igraph_vector_t H;
+	float *H;
 	float m1, m2, SH;
 	int idxm1;
 };
@@ -76,9 +76,8 @@ float max(float a, float b){
 	}
 }
 
-struct ConvexCavity reset(struct ConvexCavity convex) {
-	//fprintf(stderr, "AQUIII\n");
-	igraph_vector_init(&(convex.H),0);
+struct ConvexCavity reset(struct ConvexCavity convex, int size) {
+	convex.H = (float*)malloc(size*sizeof(float));
 	convex.m1 = inf;
 	convex.m2 = inf;
 	convex.idxm1 = 0;
@@ -86,14 +85,14 @@ struct ConvexCavity reset(struct ConvexCavity convex) {
 	return convex;
 }
 
-struct ConvexCavity push_back(struct ConvexCavity convex,float h0, float h1) {
-	igraph_vector_push_back(&(convex.H),h1);
+struct ConvexCavity push_back(struct ConvexCavity convex,float h0, float h1, int pos) {
+	convex.H[pos] = h1;
 	convex.SH += h1;
 	float h01 = h0 - h1;
 	if (h01 <= (convex.m1)) {
 		convex.m2 = convex.m1;
 		convex.m1 = h01;
-		convex.idxm1 = ((int)igraph_vector_size(&(convex.H))) - 1;
+		convex.idxm1 = pos;
 	} 
 	else if (h01 < (convex.m2)) {
 		convex.m2 = h01;
@@ -102,11 +101,11 @@ struct ConvexCavity push_back(struct ConvexCavity convex,float h0, float h1) {
 }
 
 float cavityval(struct ConvexCavity convex,int i) {
-	return (convex.SH) - ((float)igraph_vector_e(&(convex.H),i));
+	return (convex.SH) - convex.H[i];
 }
 
 float cavitymax(struct ConvexCavity convex,int i) {
-	return (convex.SH) - ((float)igraph_vector_e(&(convex.H),i)) + min((float)0.0, i == (convex.idxm1) ? (convex.m2) : (convex.m1));
+	return (convex.SH) - convex.H[i] + min((float)0.0, i == (convex.idxm1) ? (convex.m2) : (convex.m1));
 }
 
 float fullmax(struct ConvexCavity convex) {
@@ -325,10 +324,6 @@ float update(int vertex){ // i = numero que representa al vertice.{
 	}
 	// siempre se trabaja en base al mismo buffer pq Mem es global y ese se modifica
 
-	struct ConvexCavity C[depth+1]; 
-	for(int i = 0; i<=depth; i++){
-		C[i] = reset(C[i]);
-	}
 	
 	Mem = init(Mem, n); // para caso inicial
 	out = init(out, 1); // para caso inicial
@@ -364,6 +359,12 @@ float update(int vertex){ // i = numero que representa al vertice.{
 	igraph_vector_t neighbors;
 	igraph_vector_init(&neighbors,0);
 	igraph_neighbors(&graph,&neighbors,vertex,IGRAPH_OUT);
+	
+	struct ConvexCavity C[depth+1]; 
+	for(int i = 0; i<=depth; i++){
+		C[i] = reset(C[i],igraph_vector_size(&neighbors));
+	}
+
 	int j = 0;
 
 	// igraph_vector_e(&neighbors,k) = vecino k de vertex
@@ -421,7 +422,7 @@ float update(int vertex){ // i = numero que representa al vertice.{
 		for (int ti = 1; ti <= depth; ++ti) {
 			float lk = L0[ti - 1]; // Lk
 			float rk = min(h0[ti],G1[ti]); // VER SI ES MIN O MAX -> SE CONSIDERO MIN
-			C[ti] = push_back(C[ti],rk, lk); // permite calcular M1, M2, k1 VERRRRRRRR
+			C[ti] = push_back(C[ti],rk,lk,k); // permite calcular M1, M2, k1 VERRRRRRRR
 		}
 
 		/* VER ESTAS DEFINICIONES */
@@ -533,7 +534,7 @@ float update(int vertex){ // i = numero que representa al vertice.{
 	for (int ti = 1; ti < depth; ++ti){
 		Ui[ti] = fullmax(C[ti]) - ti * rho; // verrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrr
 	}
-	Ui[depth] =  summinh2 - 1;
+	Ui[depth] =  summinh2 + 1;
 	for(int i = 0; i <= depth; i++){
 		char name_atr[32];
 		sprintf(name_atr,"pdH_%d",i);
@@ -582,7 +583,6 @@ void converge(){
 		int ng = igraph_vcount(&graph); // g grafo, ng numero de vertices 
 		for (int i = 0; i < ng; ++i) {
 			float diff = update(permutacion[i]); // VER REAL_T
-			//fprintf(stderr, "AQUI2\n" );
 			if (diff > err){
 				err = diff;
 			}
@@ -650,27 +650,23 @@ igraph_vector_t coreCal(igraph_vector_t *res, int val){
 
 int main(){
 
-	FILE *F, *G, *H;
+	FILE *F;
 	char filename[32];
 	igraph_vector_t degrees, nodes, remaux, alledges;
 	igraph_es_t rem;
-	//double remove = 0.1; // multiplicador de porcentaje
-	//double rem_nodes = 0.0; // cantidad de nodos removidos
-	//int total_nodes; // total de nodos del grafo original
-	//int T = 35; // limite de la iteracion
 	clock_t start_ini, end_ini;
 	double time_used;
 
-	G = fopen("MinSum_times.csv","w"); // archivo que guardara los tiempo de ejecucion por iteracion
-	H = fopen("MinSum_iter.csv", "w"); // archivo que guardara los R-index (componente mas grande) por iteracion
-
+	start_ini = clock();
 	/* turn on attribute handling */
 	igraph_i_set_attribute_table(&igraph_cattribute_table);
 
 	/* Se lee el archivo que contiene las conexiones de los nodos */
-	F = fopen("red5.edges","r");
+	F = fopen("red3.edges","r");
 	igraph_read_graph_edgelist(&graph,F,0,0); // crea el grafo a partir del archivo con las conexiones
 	fclose(F);
+	igraph_simplify(&graph,1,0,/*edge_comb=*/ 0);
+
 	// agregar atributo a todos los vertices del grafo
 	// atribute t permitira verificar si debe ser eliminado o no
 	igraph_vector_t attr_t_vertex;
@@ -678,13 +674,11 @@ int main(){
 	igraph_vector_init(&attr_t_vertex, 0);
 	igraph_vector_init(&attr_depth_vertex, 0);
 
-	//igraph_vector_fill(&attr_t_vertex,0);
 	for(int i=0; i < igraph_vcount(&graph); i++){
 		igraph_vector_push_back(&attr_t_vertex,0);
 		igraph_vector_push_back(&attr_depth_vertex,depth+1);
 	}
 	igraph_cattribute_VAN_setv(&graph, "t", &attr_t_vertex);
-	//SETVANV(&g, "t", &attr_t_vertex);
 	igraph_cattribute_VAN_setv(&graph, "depth", &attr_depth_vertex);
 
 	// set atributos H y extH -> son "depth" atributos
@@ -710,43 +704,6 @@ int main(){
 		
 		igraph_vector_destroy(&attr_pdextH_vertex);
 		igraph_vector_destroy(&attr_pd_vertex);
-	}
-
-	while(1){
-
-		/* calculo de los grados de cada nodo del grafo */
-		igraph_vector_init(&alledges,0);
-		igraph_vector_init(&degrees, 0);
-		igraph_degree(&graph, &degrees, igraph_vss_all(), IGRAPH_ALL, IGRAPH_LOOPS); 
-
-		/* calcula que lados se deben eliminar para obtener el 2-core */
-		remaux  = coreCal(&degrees, 2);
-		//print_vector(&remaux, stdout);
-
-		if(igraph_vector_size(&remaux) == 0){
-			break;
-		}
-		
-
-		for(int i=0; i<igraph_vector_size(&remaux); i++){
-			igraph_vector_t edges;
-			igraph_vector_init(&edges,0);
-			igraph_incident(&graph,&edges,igraph_vector_e(&remaux,i),IGRAPH_ALL);
-			for(int j=0; j<igraph_vector_size(&edges); j++){
-				igraph_vector_push_back(&alledges, igraph_vector_e(&edges,j));
-			}
-			igraph_vector_destroy(&edges);
-		}
-
-		igraph_es_vector(&rem, &alledges); // crea el tipo de vector utilizado para llevar a cabo la remosion 
-		
-		/* proceso de eliminacion de los lados seleccionados del grafo */
-		igraph_delete_edges(&graph, rem);
-
-		igraph_vector_destroy(&degrees);
-		igraph_es_destroy(&rem);
-		//igraph_vector_destroy(&remaux);
-		igraph_vector_destroy(&alledges);
 	}
 
 	for(int i=0; i<=depth; i++){
@@ -788,14 +745,42 @@ int main(){
 		igraph_vector_destroy(&attr_ji0_edge);
 	}
 
+	while(1){
 
-	//plotting = true; // VER
+		/* calculo de los grados de cada nodo del grafo */
+		igraph_vector_init(&alledges,0);
+		igraph_vector_init(&degrees, 0);
+		igraph_degree(&graph, &degrees, igraph_vss_all(), IGRAPH_ALL, IGRAPH_LOOPS); 
 
+		/* calcula que lados se deben eliminar para obtener el 2-core */
+		remaux  = coreCal(&degrees, 2);
+
+		if(igraph_vector_size(&remaux) == 0){
+			break;
+		}
+		
+
+		for(int i=0; i<igraph_vector_size(&remaux); i++){
+			igraph_vector_t edges;
+			igraph_vector_init(&edges,0);
+			igraph_incident(&graph,&edges,igraph_vector_e(&remaux,i),IGRAPH_ALL);
+			for(int j=0; j<igraph_vector_size(&edges); j++){
+				igraph_vector_push_back(&alledges, igraph_vector_e(&edges,j));
+			}
+			igraph_vector_destroy(&edges);
+		}
+
+		igraph_es_vector(&rem, &alledges); // crea el tipo de vector utilizado para llevar a cabo la remosion 
+		
+		/* proceso de eliminacion de los lados seleccionados del grafo */
+		igraph_delete_edges(&graph, rem);
+
+		igraph_vector_destroy(&degrees);
+		igraph_es_destroy(&rem);
+		igraph_vector_destroy(&alledges);
+	}
 
 	converge(); 
-
-	//fprintf(stderr, "AQUIIIIII\n");
-	// check_v(true); // VER
 
 	igraph_vector_t rem_vertex;
 	igraph_vs_t delete_vertex;
@@ -807,17 +792,31 @@ int main(){
 		}
 	}
 
-	// SETEAR CARACTERISTICA DE PROBA -> 1 P_[D] POR CADA P_[D] QUE DEBERIA TENER PROBA -> HACER CON FOR ESTO POR CADA NODO
-	// SETEAR DEPTH COMO ATTR NUMERICO PROPIO DE CADA VERTICE -> DEPTH NUNCA CAMBIA VER SI SE ALTERA EN PROBA O MES
-
 	igraph_vs_vector(&delete_vertex,&rem_vertex);
 	igraph_delete_vertices(&graph,delete_vertex);
-
 	igraph_vector_destroy(&rem_vertex);
 	igraph_vs_destroy(&delete_vertex);
-	igraph_destroy(&graph);
 
-	//COMO VER EL 10% - 20% ... DE REMOSION
+	end_ini = clock();
+
+	time_used = ((double) (end_ini - start_ini))/CLOCKS_PER_SEC;
+	char output[50];		
+		
+	sprintf(output, "%f", time_used);
+	fprintf(stderr, "%s\n", output);
+
+	F = fopen("TiempoEjecución_MinSum2.txt","w");
+
+	fputs(output,F);
+
+	fclose(F);
+
+	F = fopen("GrafoFinal_MinSum2.edges","w");
+	igraph_write_graph_edgelist(&graph,F); // escritura
+	fclose(F);
+
+	fprintf(stderr, "%i %i\n", igraph_vcount(&graph), igraph_ecount(&graph));	
+	igraph_destroy(&graph);	
 
 	return 0;
 }

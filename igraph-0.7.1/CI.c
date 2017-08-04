@@ -37,10 +37,13 @@ igraph_vector_t nodesToDistance(igraph_t *g, int l, int node){
 		for(int j = 0; j < igraph_vector_size(&nodes); j++){ // calcula los vecinos de cada nodo con distancia menor a l a "node"
 			igraph_vector_init(&neigh, 0);
 			igraph_neighbors(g, &neigh, igraph_vector_e(&nodes, j), IGRAPH_ALL); // calcula los vecinos del nodo
-			for(int k = 0; k < igraph_vector_size(&nodesExc); k++){ // descarto nodos ya visitados anteriormente
-				for(int m = 0; m < igraph_vector_size(&neigh); m++){
-					if(igraph_vector_e(&neigh,m) == igraph_vector_e(&nodesExc, k)){ // si el nodo ya habia sido visitado previamente
+
+			for(int m = 0; m < igraph_vector_size(&neigh); m++){
+				for(int k = 0; k < igraph_vector_size(&nodesExc); k++){ // descarto nodos ya visitados anteriormente
+					if((int)igraph_vector_e(&neigh,m) == (int)igraph_vector_e(&nodesExc, k)){ // si el nodo ya habia sido visitado previamente
 						igraph_vector_remove(&neigh, m); // elimino dicho nodo
+						m--;
+						break;
 					}
 				}
 			}
@@ -56,6 +59,19 @@ igraph_vector_t nodesToDistance(igraph_t *g, int l, int node){
 
 		igraph_vector_destroy(&nodesaux);
 		igraph_vector_destroy(&neigh);
+	}
+
+	int size = (int)igraph_vector_max(&nodes);
+	int rep[size+1];
+	for(int k = 0; k <= size; k++) rep[k] = 0;
+	for(int k = 0; k < igraph_vector_size(&nodes); k++){
+		int node = (int)igraph_vector_e(&nodes,k);
+		if(rep[node] > 0){
+			igraph_vector_remove(&nodes,k);
+		}
+		else{
+			rep[node] += 1;
+		}
 	}
 
 	igraph_vector_destroy(&nodesExc);
@@ -86,10 +102,12 @@ igraph_vector_t neighborhood(igraph_t *g, int l, int node){
 		for(int j = 0; j < igraph_vector_size(&nodes); j++){ // calcula los vecinos de cada nodo con distancia menor a l a "node"
 			igraph_vector_init(&neigh, 0);
 			igraph_neighbors(g, &neigh, igraph_vector_e(&nodes, j), IGRAPH_ALL); // calcula los vecinos del nodo
-			for(int k = 0; k < igraph_vector_size(&nodesExc); k++){ // descarto nodos ya visitados anteriormente
-				for(int m = 0; m < igraph_vector_size(&neigh); m++){
-					if(igraph_vector_e(&neigh,m) == igraph_vector_e(&nodesExc, k)){ // si el nodo ya habia sido visitado previamente
+			for(int m = 0; m < igraph_vector_size(&neigh); m++){
+				for(int k = 0; k < igraph_vector_size(&nodesExc); k++){ // descarto nodos ya visitados anteriormente
+					if((int)igraph_vector_e(&neigh,m) == (int)igraph_vector_e(&nodesExc, k)){ // si el nodo ya habia sido visitado previamente
 						igraph_vector_remove(&neigh, m); // elimino dicho nodo
+						m--;
+						break;
 					}
 				}
 			}
@@ -109,6 +127,19 @@ igraph_vector_t neighborhood(igraph_t *g, int l, int node){
 
 	igraph_vector_destroy(&nodes);
 	igraph_vector_remove(&nodesExc,0); // remuevo el nodo central "node"
+	int size = (int)igraph_vector_max(&nodesExc);
+	int rep[size+1];
+	for(int k = 0; k <= size; k++) rep[k] = 0;
+	for(int k = 0; k < igraph_vector_size(&nodesExc); k++){
+		int node = (int)igraph_vector_e(&nodesExc,k);
+		//fprintf(stderr, "NODO: %d, REP: %d\n",node,rep[node]);
+		if(rep[node] > 0){
+			igraph_vector_remove(&nodesExc,k);
+		}
+		else{
+			rep[node] += 1;
+		}
+	}
 	return nodesExc;
 }
 
@@ -128,6 +159,15 @@ int max_component(igraph_t *g){
 		}
 	}
 	return (int)(igraph_vcount(VECTOR(complist)[max])); // componente conexa mas grande
+}
+
+
+void print_vector(igraph_vector_t *v, FILE *f) {
+  long int i;
+  for (i=0; i<igraph_vector_size(v); i++) {
+    fprintf(f, " %li", (long int) VECTOR(*v)[i]);
+  }
+  fprintf(f, "\n");
 }
 
 int main(){
@@ -152,9 +192,11 @@ int main(){
 
 	/* Se lee el archivo que contiene las conexiones de los nodos */
 	F = fopen("red3.edges","r");
-	igraph_read_graph_edgelist(&graph,F,0,0); // crea el grafo a partir del archivo con las conexiones
+	igraph_read_graph_edgelist(&graph,F,0,1); // crea el grafo a partir del archivo con las conexiones
+	//igraph_read_graph_edgelist(&graph,F,0,0); // crea el grafo a partir del archivo con las conexiones
 	fclose(F);
-	igraph_simplify(&graph,1,0,/*edge_comb=*/ 0);
+
+	//igraph_simplify(&graph,1,0,/*edge_comb=*/ 0);
 
 	/* Calcular los grados de los nodos del grafo */
 	igraph_vector_init(&degrees, 0);
@@ -177,7 +219,10 @@ int main(){
 		}
 		CI *= sum; 
 		igraph_vector_push_back(&CIvalues, CI); // agrega valor CI calculado al vector que contendra todos los CI de cada nodo
+		//print_vector(&nodes,stdout);
+		//fprintf(stderr, "\n\n\n");
 	}
+	//print_vector(&CIvalues,stdout);
 
 	double y = (1.0/(l+1)); // calcula el exponente de la condicion de termino del algoritmo
 	double x = (igraph_vector_sum(&CIvalues)/(N * k)); // calcula la base de la condicion de termino del algoritmo
@@ -190,7 +235,7 @@ int main(){
 		nodes_neigh = neighborhood(&graph, l+1, max_node); // veo nodos dentro de vecindad l+1 del nodo a eliminar
 		
 		igraph_vector_init(&edges,0);
-	    	igraph_incident(&graph,&edges,max_node,IGRAPH_ALL); // calcula los lados incidentes al nodo a eliminar para aislarlo
+	    igraph_incident(&graph,&edges,max_node,IGRAPH_ALL); // calcula los lados incidentes al nodo a eliminar para aislarlo
 			
 		igraph_es_vector(&rem, &edges); 
 		igraph_delete_edges(&graph, rem); // eliminacion de los vertices incidentes al nodo a eliminar

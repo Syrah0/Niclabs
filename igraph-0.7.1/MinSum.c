@@ -778,7 +778,7 @@ int main(){
 
 	fclose(F);
 
-	F = fopen("GrafoFinal_MinSum.txt","w");
+	F = fopen("GrafoFinal_MinSum.edges","w");
 	igraph_write_graph_edgelist(&graph,F); // escritura
 	fclose(F);
 

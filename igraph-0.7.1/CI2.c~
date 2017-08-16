@@ -99,7 +99,7 @@ int main(){
 	char filename[32];
 	igraph_t graph;
 	igraph_vector_t degrees, nodes, CIvalues;
-	int l = 3; // radio de la vecindad alegido
+	int l = 2; // radio de la vecindad alegido
 	double rest;
 	double remove = 0.1; // multiplicador de porcentaje
 	double rem_nodes = 0.0; // cantidad de nodos removidos
@@ -108,8 +108,8 @@ int main(){
 	double time_used;
 	double time_used_total = 0;
 
-	G = fopen("CI3v2_times.csv","w"); // archivo que guardara los tiempo de ejecucion por iteracion
-	H = fopen("CI3v2_iter.csv", "w"); // archivo que guardara los R-index (componente mas grande) por iteracion
+	G = fopen("CI2v2_times.csv","w"); // archivo que guardara los tiempo de ejecucion por iteracion
+	H = fopen("CI2v2_iter.csv", "w"); // archivo que guardara los R-index (componente mas grande) por iteracion
 
 	/* Se lee el archivo que contiene las conexiones de los nodos */
 	F = fopen("red3.edges","r");
@@ -179,7 +179,7 @@ int main(){
 		/* Proceso de escritura del nuevo grafo tras cierto porcentaje de eliminacion de nodos */
 		rem_nodes += 1.0; // aumento cantidad de nodos removidos
 		if(rem_nodes == ceil(total_nodes*remove)){
-			sprintf(filename,"grafo%d_CI3_v2.edges",(total_nodes - (int)rem_nodes)); // nombre del archivo donde estaran los resultados
+			sprintf(filename,"grafo%d_CI2_v2.edges",(total_nodes - (int)rem_nodes)); // nombre del archivo donde estaran los resultados
 		    F = fopen(filename,"w");
 		    igraph_write_graph_edgelist(&graph,F); // escritura
 		    fclose(F);
@@ -211,7 +211,7 @@ int main(){
 	fclose(G);
 	fclose(H);
 
-	G = fopen("TiempoEjecución_CI3_v2.txt","w");
+	G = fopen("TiempoEjecución_CI2_v2.txt","w");
 
 	fputs(output,G);
 
@@ -219,7 +219,7 @@ int main(){
 	fprintf(stderr, "%i %i\n", igraph_vcount(&graph), igraph_ecount(&graph));
 
 	//sprintf(filename,"grafoFinal_CI.edges"); // nombre del archivo donde estaran los resultados
-	F = fopen("grafoFinal_CI3_v2.edges","w");
+	F = fopen("grafoFinal_CI2_v2.edges","w");
     	igraph_write_graph_edgelist(&graph,F); // escritura
 	fclose(F);	
 

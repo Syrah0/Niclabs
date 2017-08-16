@@ -143,29 +143,11 @@ igraph_vector_t neighborhood(igraph_t *g, int l, int node){
 	return nodesExc;
 }
 
-/* Se encarga de calcular el tamaño de la componente conexa mas grande */
-int max_component(igraph_t *g){
-	igraph_vector_ptr_t complist;
-
-	/* Se inicializa vector que contendra todas las componentes conexas del grafo */
-	igraph_vector_ptr_init(&complist, 0);
-	igraph_decompose(g,&complist,IGRAPH_WEAK,-1,2); // se realiza la descomposicion del grafo en sus componentes
-
-	/* Se verifica cual es la componente mas grande */
-	int max = 0;
-	for(int i=1; i<igraph_vector_ptr_size(&complist); i++){
-		if(igraph_vcount(VECTOR(complist)[max]) < igraph_vcount(VECTOR(complist)[i])){ // Hay una mas grande que la componente actual
-			max = i;
-		}
-	}
-	return (int)(igraph_vcount(VECTOR(complist)[max])); // componente conexa mas grande
-}
-
 int init_CI(const char * name, int rad){
 	FILE *F, *G, *H;
 	char filename[32];
 	igraph_t graph, gaux;
-	igraph_vector_t degrees, nodes, CIvalues, nodes_neigh, edges;
+	igraph_vector_t degrees, nodes, CIvalues, nodes_neigh, edges, neigh;
 	igraph_es_t rem;
 	int l = rad; // radio de la vecindad elegido
 	double rest;
@@ -176,8 +158,8 @@ int init_CI(const char * name, int rad){
 	double time_used;
 	double time_used_total = 0;
 
-	G = fopen("CI4_times.csv","w"); // archivo que guardara los tiempo de ejecucion por iteracion
-	H = fopen("CI4_iter.csv", "w"); // archivo que guardara los R-index (componente mas grande) por iteracion
+	G = fopen("CI_times.csv","w"); // archivo que guardara los tiempo de ejecucion por iteracion
+	H = fopen("CI_iter.csv", "w"); // archivo que guardara los R-index (componente mas grande) por iteracion
 
 	start = clock();
 
@@ -203,15 +185,21 @@ int init_CI(const char * name, int rad){
 	int N = igraph_vcount(&graph); // cantidad de nodos del grafo en analisis
 	total_nodes = N;
 
+	igraph_vector_init(&nodes,0);
+	int del_nodes[total_nodes];
+	for(int i = 0; i < total_nodes; i++){
+		del_nodes[i] = i;
+	}
+
 	/* Calcular el CI de cada nodo */
 	igraph_vector_init(&CIvalues, 0);
 	for(int i = 0; i < N; i++){
-		nodes = nodesToDistance(&graph, l, i); // calculo los nodos a distancia l del nodo "i"
+		neigh = nodesToDistance(&graph, l, i); // calculo los nodos a distancia l del nodo "i"
 		int CI = (igraph_vector_e(&degrees, i) - 1);
 		int sum = 0;
 		/* calculo de la sumatoria de la ecuacion CI a partir de los nodos en el borde de la vecindad de radio l */
-		for(int j = 0; j < igraph_vector_size(&nodes); j++){ 
-			sum += (igraph_vector_e(&degrees, igraph_vector_e(&nodes, j)) - 1);
+		for(int j = 0; j < igraph_vector_size(&neigh); j++){ 
+			sum += (igraph_vector_e(&degrees, igraph_vector_e(&neigh, j)) - 1);
 		}
 		CI *= sum; 
 		igraph_vector_push_back(&CIvalues, CI); // agrega valor CI calculado al vector que contendra todos los CI de cada nodo
@@ -242,6 +230,20 @@ int init_CI(const char * name, int rad){
 		igraph_copy(&gaux, &graph);
 		igraph_delete_vertices(&gaux, igraph_vss_1(max_node)); // eliminacion del nodo con mayor CI
 
+		/* agregar nodo removido a la lista */
+		int res = 0;
+		for(int i = 0; i < total_nodes; i++){
+			if(del_nodes[i] == max_node){
+				// agrego a lista
+				igraph_vector_push_back(&nodes,i);
+				del_nodes[i] = -1;
+				res = 1;
+			}
+			else{
+				del_nodes[i] -= res;
+			}
+		}
+
 		end = clock();
 		time_used = ((double) (end - start))/CLOCKS_PER_SEC;
 		time_used_total += time_used;
@@ -256,7 +258,7 @@ int init_CI(const char * name, int rad){
 		/* Proceso de escritura del nuevo grafo tras cierto porcentaje de eliminacion de nodos */
 		rem_nodes += 1.0; // aumento cantidad de nodos removidos
 		if(rem_nodes == ceil(total_nodes*remove)){
-		    sprintf(filename,"grafo%d_CI4.edges",(total_nodes - (int)rem_nodes)); // nombre del archivo donde estaran los resultados
+		    sprintf(filename,"grafo%d_CI.edges",(total_nodes - (int)rem_nodes)); // nombre del archivo donde estaran los resultados
 		    F = fopen(filename,"w");
 		    igraph_write_graph_edgelist(&gaux,F); // escritura
 		    fclose(F);
@@ -291,12 +293,12 @@ int init_CI(const char * name, int rad){
 
 		/* actualizacion de los valores CI solo de los nodos dentro de la vecindad de radio l+1 del nodo a eliminar */
 		for(int i = 0; i < igraph_vector_size(&nodes_neigh); i++){
-			nodes = nodesToDistance(&graph, l, igraph_vector_e(&nodes_neigh,i)); // calcula los nodos en el borde de la vecindad de radio l
+			neigh = nodesToDistance(&graph, l, igraph_vector_e(&nodes_neigh,i)); // calcula los nodos en el borde de la vecindad de radio l
 			int CI = (igraph_vector_e(&degrees, igraph_vector_e(&nodes_neigh,i)) - 1);
 			int sum = 0;
 			/* calculo de la sumatoria de la ecuacion CI a partir de los nodos en el borde de la vecindad de radio l */
-			for(int j = 0; j < igraph_vector_size(&nodes); j++){
-				sum += (igraph_vector_e(&degrees, igraph_vector_e(&nodes, j)) - 1);
+			for(int j = 0; j < igraph_vector_size(&neigh); j++){
+				sum += (igraph_vector_e(&degrees, igraph_vector_e(&neigh, j)) - 1);
 			}
 			CI *= sum;
 			igraph_vector_set(&CIvalues,igraph_vector_e(&nodes_neigh,i),CI); // actualiza el valor de CI del nodo i dentro del vector
@@ -309,44 +311,70 @@ int init_CI(const char * name, int rad){
 		/* calculo de la nueva condicion de termino */
 		x = (igraph_vector_sum(&CIvalues)/(N * k)); // calculo de la nueva base
 		rest = pow(x,y);
-	}	char output[50];		
-		
+	}
+
+	char output[50];		
+
 	sprintf(output, "%f", time_used_total);
-	fprintf(stderr, "%s\n", output);
+	//fprintf(stderr, "%s\n", output);
 
 	fclose(G);
 	fclose(H);
 
-	G = fopen("TiempoEjecución_CI4.txt","w");
+	G = fopen("TiempoEjecución_CI.txt","w");
 
 	fputs(output,G);
 
 	fclose(G);
 	fprintf(stderr, "%i %i\n", igraph_vcount(&graph), igraph_ecount(&graph));
 
-	F = fopen("grafoFinal_CI4.edges","w");
+	F = fopen("grafoFinal_CI.edges","w");
     igraph_write_graph_edgelist(&graph,F); // escritura
 	fclose(F);	
 
+	// VER SI HACER DESMANTELAMIENTO O NO Y SI HACERLO CON CUAL REGLA
+
+	/* realizar tree-breaking o desmantelamiento */
+	fprintf(stderr, "Desmantelamiento\n");
+
+	while(1){
+		int giant_comp = max_component(&graph);
+		if(giant_comp == 1){
+			break;
+		}
+
+		igraph_vector_init(&degrees, 0);
+		igraph_degree(&graph, &degrees, igraph_vss_all(), IGRAPH_ALL, IGRAPH_LOOPS); 
+
+		int max_node = igraph_vector_which_max(&degrees);
+		igraph_delete_vertices(&graph, igraph_vss_1(max_node));
+		int res = 0;
+		for(int i = 0; i < total_nodes; i++){
+			if(del_nodes[i] == max_node){
+				// agrego a lista
+				igraph_vector_push_back(&nodes,i);
+				del_nodes[i] = -1;
+				res = 1;
+			}
+			else{
+				del_nodes[i] -= res;
+			}
+		}
+	}
+	
+	fprintf(stderr, "%i %i\n", igraph_vcount(&graph), igraph_ecount(&graph));
+
+	F = fopen("removedNodes_CI.txt","w");
+	for(int i = 0; i < igraph_vector_size(&nodes)-1; i++){
+		sprintf(output, "%d\n", (int)igraph_vector_e(&nodes,i));
+		fputs(output,F);
+	}
+	
+	sprintf(output, "%d", (int)igraph_vector_e(&nodes,igraph_vector_size(&nodes)-1));
+	fputs(output,F);
+	fclose(F);	
+
 	printf("VACIO\n");
-
-	return 0;
-}
-
-int main(int argc, const char * argv[]){
-	int rad = 0;
-	const char* num = argv[2];
-
-	if(argc != 3){
-		fprintf(stderr, "Ingresar el nombre del archivo que contiene el grafo con su extensión y el radio de la vecindad respectivamente\n");
-		exit(1);
-	}
-
-	for(int i = 0; i < strlen(num); i++){
-		rad = rad*10 + (num[i] - '0');
-	}
-
-	init_CI(argv[1],rad);
 
 	return 0;
 }

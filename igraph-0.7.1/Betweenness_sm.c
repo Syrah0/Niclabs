@@ -13,24 +13,7 @@ Algoritmo CIl: Debe tener l inicial -> consideraremos l = 4 (por comparacion rea
 #include <string.h>
 #include <math.h>
 #include <time.h>
-
-/* Se encarga de calcular el tamaño de la componente conexa mas grande */
-int max_component(igraph_t *g){
-	igraph_vector_ptr_t complist;
-
-	/* Se inicializa vector que contendra todas las componentes conexas del grafo */
-	igraph_vector_ptr_init(&complist, 0);
-	igraph_decompose(g,&complist,IGRAPH_WEAK,-1,0); // se realiza la descomposicion del grafo en sus componentes
-
-	/* Se verifica cual es la componente mas grande */
-	int max = 0;
-	for(int i=1; i<igraph_vector_ptr_size(&complist); i++){
-		if(igraph_vcount(VECTOR(complist)[max]) < igraph_vcount(VECTOR(complist)[i])){ // Hay una mas grande que la componente actual
-			max = i;
-		}
-	}
-	return (int)(igraph_vcount(VECTOR(complist)[max])); // componente conexa mas grande
-}
+//#include "max_component.c"
 
 int init_Betweenness(const char * name){
 	FILE *F, *G, *H;
@@ -100,7 +83,7 @@ int init_Betweenness(const char * name){
 		char output[50];		
 
 		sprintf(output, "%f", time_used);
-		fprintf(stderr, "%s\n", output);
+		//fprintf(stderr, "%s\n", output);
 		fputs(output,G);
 		putc(',',G);
 
@@ -145,7 +128,7 @@ int init_Betweenness(const char * name){
 	fclose(F);	
 		
 	sprintf(output, "%f", time_used_total);
-	fprintf(stderr, "%s\n", output);
+	//fprintf(stderr, "%s\n", output);
 
 	fclose(G);
 	fclose(H);
@@ -162,18 +145,6 @@ int init_Betweenness(const char * name){
 	fclose(F);	
 
 	printf("VACIO\n");
-
-	return 0;
-}
-
-int main(int argc, const char * argv[]){
-
-	if(argc != 2){
-		fprintf(stderr, "Por favor ingresar el nombre del archivo que contiene el grafo con su extensión\n");
-		exit(1);
-	}
-
-	init_Betweenness(argv[1]);
 
 	return 0;
 }

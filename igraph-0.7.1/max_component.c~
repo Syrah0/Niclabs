@@ -1,8 +1,3 @@
-#include <igraph.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-
 /* Se encarga de calcular el tamaño de la componente conexa mas grande */
 int max_component(igraph_t *g){
 	igraph_vector_ptr_t complist;

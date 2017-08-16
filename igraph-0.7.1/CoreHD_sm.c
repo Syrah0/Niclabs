@@ -17,6 +17,7 @@ Algoritmo CoreHD:
 #include <string.h>
 #include <math.h>
 #include <time.h>
+#include "max_component.c"
 
 
 /* Se encarga de seleccionar los nodos que se deben eliminar para conformar el 2-core */
@@ -33,24 +34,6 @@ igraph_vector_t coreCal(igraph_vector_t *res, int val){
 		}
 	}	
 	return remaux;
-}
-
-/* Se encarga de calcular el tamaño de la componente conexa mas grande */
-int max_component(igraph_t *g){
-	igraph_vector_ptr_t complist;
-
-	/* Se inicializa vector que contendra todas las componentes conexas del grafo */
-	igraph_vector_ptr_init(&complist, 0);
-	igraph_decompose(g,&complist,IGRAPH_WEAK,-1,0); // se realiza la descomposicion del grafo en sus componentes
-
-	/* Se verifica cual es la componente mas grande */
-	int max = 0;
-	for(int i=1; i<igraph_vector_ptr_size(&complist); i++){
-		if(igraph_vcount(VECTOR(complist)[max]) < igraph_vcount(VECTOR(complist)[i])){ // Hay una mas grande que la componente actual
-			max = i;
-		}
-	}
-	return (int)(igraph_vcount(VECTOR(complist)[max])); // componente conexa mas grande
 }
 
 int init_CoreHD(const char *name){
@@ -73,25 +56,24 @@ int init_CoreHD(const char *name){
 	start = clock();
 	/* se lee el archivo con los datos del grafo */
 	F = fopen(name,"r");
-	
 	if(F == NULL){
 		fprintf(stderr, "Error al abrir el archivo %s\n", name);
 		exit(1);
 	}
-	
 	igraph_read_graph_edgelist(&graph,F,0,0); // crea el grafo a partir del archivo con las conexiones
 	fclose(F);
 
 	igraph_simplify(&graph,1,0,/*edge_comb=*/ 0);
 
 	total_nodes = igraph_vcount(&graph);
+	
 	igraph_vector_init(&nodes,0);
 	int del_nodes[total_nodes];
 	for(int i = 0; i < total_nodes; i++){
 		del_nodes[i] = i;
 	}
 
-	fprintf(stderr, "%i\n", total_nodes);
+	//fprintf(stderr, "%i\n", total_nodes);
 
 	igraph_copy(&gaux, &graph); // gaux representara los 2-core formados	
 	
@@ -164,7 +146,7 @@ int init_CoreHD(const char *name){
 		char output[50];		
 		
 		sprintf(output, "%f", time_used);
-		fprintf(stderr, "%s\n", output);
+		//fprintf(stderr, "%s\n", output);
 
 		fputs(output,G);
 		putc(',',G);
@@ -239,7 +221,7 @@ int init_CoreHD(const char *name){
 	char output[50];		
 		
 	sprintf(output, "%f", time_used_total);
-	fprintf(stderr, "%s\n", output);
+	//fprintf(stderr, "%s\n", output);
 
 	fclose(G);
 	fclose(H);
@@ -251,7 +233,7 @@ int init_CoreHD(const char *name){
 	fclose(G);	
 
 	igraph_destroy(&gaux);
-	fprintf(stderr, "%i %i\n", (int)igraph_vcount(&graph), (int)igraph_ecount(&graph));
+	//fprintf(stderr, "%i %i\n", (int)igraph_vcount(&graph), (int)igraph_ecount(&graph));
 	
 	F = fopen("grafoFinal_CoreHD.edges","w");
     igraph_write_graph_edgelist(&graph,F); // escritura
@@ -296,18 +278,6 @@ int init_CoreHD(const char *name){
 
 	fprintf(stderr, "%i %i\n", (int)igraph_vcount(&graph), (int)igraph_ecount(&graph));
 	printf("VACIO\n");
-
-	return 0;
-}
-
-int main(int argc, const char * argv[]){
-
-	if(argc != 2){
-		fprintf(stderr, "Por favor ingresar el nombre del archivo que contiene el grafo con su extensión\n");
-		exit(1);
-	}
-
-	init_CoreHD(argv[1]);
 
 	return 0;
 }

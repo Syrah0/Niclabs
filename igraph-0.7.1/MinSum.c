@@ -316,8 +316,6 @@ float update(int vertex){ // i = numero que representa al vertice.{
 	}
 	// siempre se trabaja en base al mismo buffer pq Mem es global y ese se modifica
 
-	
-
 	Mem = init(Mem, n); // para caso inicial
 	out = init(out, 1); // para caso inicial
 	

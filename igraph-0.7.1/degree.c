@@ -36,7 +36,7 @@ int init_Degree(const char * name){
 	FILE *F, *G, *H;
 	char filename[32];
 	igraph_t graph, gaux, gaux2;
-	igraph_vector_t degrees, nodes_aux;
+	igraph_vector_t degrees, nodes_aux, nodes;
 	igraph_vs_t nodes_del;
 	double remove = 0.1; // multiplicador de porcentaje
 	double rem_nodes = 0.0; // cantidad de nodos removidos
@@ -58,6 +58,12 @@ int init_Degree(const char * name){
 	fclose(F);
 	igraph_simplify(&graph,1,0,/*edge_comb=*/ 0);
 	total_nodes = igraph_vcount(&graph); // cantidad de nodos del grafo en analisis
+
+	igraph_vector_init(&nodes,0);
+	int del_nodes[total_nodes];
+	for(int i = 0; i < total_nodes; i++){
+		del_nodes[i] = i;
+	}
 
 	start = clock();
 	int node, giant_comp, degree;
@@ -110,7 +116,7 @@ int init_Degree(const char * name){
 		    fclose(F);
 		    remove += 0.1; // aumento porcentaje de eliminacion
 		}
-		fprintf(stderr, "%i\n", (int)rem_nodes);
+		//fprintf(stderr, "%i\n", (int)rem_nodes);
 
 		sprintf(output,"%d", (int)iter);
 		fputs(output,H);
@@ -130,14 +136,59 @@ int init_Degree(const char * name){
 		}
 		iter++;		
 	}
-	char output[50];		
+	char output[50];	
+
+	for(int i = 0; i < igraph_vector_size(&nodes_aux); i++){
+		int rest = 0;
+		for(int j = 0; j < total_nodes; j++){
+			if(j == (int)igraph_vector_e(&nodes_aux,i)){
+				// agrego a lista
+				igraph_vector_push_back(&nodes,j);
+				del_nodes[j] = -1;
+				rest = 1;
+			}
+			else{
+				if(del_nodes[j] != -1){
+					del_nodes[j] -= rest;
+				}
+			}
+		}
+	}
+
+	fprintf(stderr, "%i %i\n", (int)igraph_vcount(&graph), (int)igraph_ecount(&graph));
+	
+	fprintf(stderr, "Eliminación nodos grado 0\n");	
+
+	/* Eliminacion nodos de grado cero */
+	while(igraph_vcount(&graph) > 0){
+		igraph_vector_init(&degrees,0);
+		igraph_degree(&graph, &degrees, igraph_vss_all(), IGRAPH_ALL, IGRAPH_LOOPS); 
+		node = igraph_vector_which_max(&degrees);
+
+		igraph_delete_vertices(&graph,igraph_vss_1(node));
+		igraph_vector_destroy(&degrees);
+
+		/* agregar nodo removido a la lista */
+		int rest = 0;
+		for(int i = 0; i < total_nodes; i++){
+			if(del_nodes[i] == node){
+				// agrego a lista
+				igraph_vector_push_back(&nodes,i);
+				del_nodes[i] = -1;
+				rest = 1;
+			}
+			else{
+				del_nodes[i] -= rest;
+			}
+		}
+	}	
 
 	F = fopen("removedNodes_Degree.txt","w");
-	for(int i = 0; i < igraph_vector_size(&nodes_aux)-1; i++){
-		sprintf(output, "%d\n", (int)igraph_vector_e(&nodes_aux,i));
+	for(int i = 0; i < igraph_vector_size(&nodes)-1; i++){
+		sprintf(output, "%d\n", (int)igraph_vector_e(&nodes,i));
 		fputs(output,F);
 	}
-	sprintf(output, "%d", (int)igraph_vector_e(&nodes_aux,igraph_vector_size(&nodes_aux)-1));
+	sprintf(output, "%d", (int)igraph_vector_e(&nodes,igraph_vector_size(&nodes)-1));
 	fputs(output,F);
 	fclose(F);
 		

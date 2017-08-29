@@ -50,6 +50,8 @@ int init_CoreHD(const char *name){
 	double time_used;
 	double time_used_total = 0;
 
+	fprintf(stderr, "Corriendo CoreHD\n");
+
 	G = fopen("CoreHD_times.csv","w"); // archivo que guardara los tiempos de ejecucion por iteracion
 	H = fopen("CoreHD_iter.csv", "w"); // archivo que guardara los R-index (componente mas grande) por iteracion
 
@@ -72,8 +74,6 @@ int init_CoreHD(const char *name){
 	for(int i = 0; i < total_nodes; i++){
 		del_nodes[i] = i;
 	}
-
-	//fprintf(stderr, "%i\n", total_nodes);
 
 	igraph_copy(&gaux, &graph); // gaux representara los 2-core formados	
 	
@@ -266,6 +266,35 @@ int init_CoreHD(const char *name){
 			}
 		}
 	}	
+
+	fprintf(stderr, "%i %i\n", (int)igraph_vcount(&graph), (int)igraph_ecount(&graph));
+
+	fprintf(stderr, "Eliminación nodos grado 0\n");
+	/* Eliminacion nodos de grado cero */
+	while(igraph_vcount(&graph) > 0){
+
+		igraph_vector_init(&result,0);
+		igraph_degree(&graph, &result, igraph_vss_all(), IGRAPH_ALL, IGRAPH_LOOPS); 
+
+		int max_node = igraph_vector_which_max(&result);
+		
+		igraph_delete_vertices(&graph,igraph_vss_1(max_node));
+		igraph_vector_destroy(&result);
+
+		/* agregar nodo removido a la lista */
+		int rest = 0;
+		for(int i = 0; i < total_nodes; i++){
+			if(del_nodes[i] == max_node){
+				// agrego a lista
+				igraph_vector_push_back(&nodes,i);
+				del_nodes[i] = -1;
+				rest = 1;
+			}
+			else{
+				del_nodes[i] -= rest;
+			}
+		}
+	}
 
 	F = fopen("removedNodes_CoreHD.txt","w");
 	for(int i = 0; i < igraph_vector_size(&nodes)-1; i++){

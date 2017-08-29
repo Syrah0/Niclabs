@@ -287,7 +287,7 @@ int init_CI(const char * name, int rad){
 		igraph_vector_init(&degrees, 0);
 		igraph_degree(&graph, &degrees, igraph_vss_all(), IGRAPH_ALL, IGRAPH_LOOPS); 
 
-		N = igraph_vcount(&graph) - 1; // cantidad de nodos del grafo (-1 porque no se debe considerar el nodo que se desea eliminar)
+		//N = igraph_vcount(&graph) - 1; // cantidad de nodos del grafo (-1 porque no se debe considerar el nodo que se desea eliminar)
 
 		/* actualizacion de los valores CI solo de los nodos dentro de la vecindad de radio l+1 del nodo a eliminar */
 		for(int i = 0; i < igraph_vector_size(&nodes_neigh); i++){

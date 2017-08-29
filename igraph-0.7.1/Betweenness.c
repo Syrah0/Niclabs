@@ -135,6 +135,35 @@ int init_Betweenness(const char * name){
 	//print_vector(&nodes,stdout);
 	char output[50];	
 
+	fprintf(stderr, "%i %i\n", (int)igraph_vcount(&graph), (int)igraph_ecount(&graph));
+
+	fprintf(stderr, "Eliminación nodos grado 0\n");	
+
+	/* Eliminacion nodos de grado cero */
+	while(igraph_vcount(&graph) > 0){
+		igraph_vector_init(&degrees,0);
+		igraph_degree(&graph, &degrees, igraph_vss_all(), IGRAPH_ALL, IGRAPH_LOOPS); 
+		node = igraph_vector_which_max(&degrees);
+
+		igraph_delete_vertices(&graph,igraph_vss_1(node));
+		igraph_vector_destroy(&degrees);
+
+		/* agregar nodo removido a la lista */
+		int rest = 0;
+		for(int i = 0; i < total_nodes; i++){
+			if(del_nodes[i] == node){
+				// agrego a lista
+				igraph_vector_push_back(&nodes,i);
+				del_nodes[i] = -1;
+				rest = 1;
+			}
+			else{
+				del_nodes[i] -= rest;
+			}
+		}
+	}
+
+
 	F = fopen("removedNodes_Betweenness.txt","w");
 	for(int i = 0; i < igraph_vector_size(&nodes)-1; i++){
 		sprintf(output, "%d\n", (int)igraph_vector_e(&nodes,i));

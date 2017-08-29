@@ -61,7 +61,7 @@ double kendallCoef(int* X, int* Y, int len){
 	return res/div;
 }
 
-int CalculateKendallMetric(FILE *F, FILE *G, FILE *R, char *compare){
+int CalculateKendallMetric(FILE *F, FILE *G, FILE *R, char *compare, int comp){
 	igraph_vector_t nodes_met1, nodes_met2;
 	int node, lenMet1, lenMet2, len, mode;
 	char output[20];
@@ -75,6 +75,7 @@ int CalculateKendallMetric(FILE *F, FILE *G, FILE *R, char *compare){
 	if(mode){
 		fprintf(stderr, "error fseek primer archivo\n");
 	}
+
 	mode = fseek(G,0,SEEK_SET);
 	if(mode){
 		fprintf(stderr, "error fseek segundo archivo\n");
@@ -96,11 +97,14 @@ int CalculateKendallMetric(FILE *F, FILE *G, FILE *R, char *compare){
 	lenMet1 = igraph_vector_size(&nodes_met1);
 	lenMet2 = igraph_vector_size(&nodes_met2);
 
-	fprintf(stderr, "%d, %d\n", lenMet1,lenMet2);
+	//fprintf(stderr, "%d, %d\n", lenMet1,lenMet2);
 
 	// revisar que largo de metrica es menor...
 	// para hacer los pares segun dicha metrica
-	if(lenMet1 < lenMet2){
+	if(comp < lenMet1 && comp < lenMet2){
+		len = comp;
+	}
+	else if(lenMet1 < lenMet2){
 		len = lenMet1;
 	}
 	else{
@@ -123,7 +127,6 @@ int CalculateKendallMetric(FILE *F, FILE *G, FILE *R, char *compare){
 
 	fputs(compare,R);
 	fputs(output,R);
-	putc('\n',R);
 
 	fprintf(stderr, "%lf\n", kendall);
 }
@@ -138,17 +141,23 @@ int main(int argc, const char * argv[]){
 	// LISTO // ARREGLAR COREHD CON PROCESO DE DESMANTELAMIENTO
 
 	FILE *F, *G, *H, *I, *R;
-	int rad = 0;
+	int rad = 0, comp = 0;
 	const char* num = argv[2];
+	const char* elem = argv[3];
 
-	if(argc != 3){
-		fprintf(stderr, "Por favor ingresar el nombre del archivo que contiene el grafo y la vecindad de CI\n");
+	if(argc != 4){
+		fprintf(stderr, "Ingresar: nombre del archivo que contiene el grafo, la vecindad de CI y cantidad de elementos a comparar\n");
 		exit(1);
 	}
 
 	for(int i = 0; i < strlen(num); i++){
 		rad = rad*10 + (num[i] - '0');
 	}
+
+	for(int i = 0; i < strlen(elem); i++){
+		comp = comp*10 + (elem[i] - '0');
+	}
+
 
 	init_CoreHD(argv[1]);
 	init_Degree(argv[1]);
@@ -159,31 +168,41 @@ int main(int argc, const char * argv[]){
 	G = fopen("removedNodes_Degree.txt","r"); // metrica 2
 	H = fopen("removedNodes_Betweenness.txt","r"); // metrica 3
 	I = fopen("removedNodes_CI.txt","r"); // metrica 4
-	R = fopen("Kendall_Correlation.csv","w");
+	R = fopen("Kendall_Correlation.csv","a");
+
+	fputs(argv[1],R);
+	putc(',',R);
 	
 	fprintf(stderr, "Calculo metrica CoreHD y Degree\n");
 
-	CalculateKendallMetric(F,G,R,"CoreHD_Degree,");
+	CalculateKendallMetric(F,G,R,"CoreHD_Degree,",comp);
+	putc(',',R);
 
 	fprintf(stderr, "Calculo metrica CoreHD y Betweenness\n");
 	
-	CalculateKendallMetric(F,H,R,"CoreHD_Betweenness,");
+	CalculateKendallMetric(F,H,R,"CoreHD_Betweenness,",comp);
+	putc(',',R);
 
 	fprintf(stderr, "Calculo metrica CoreHD y CI\n");
 	
-	CalculateKendallMetric(F,I,R,"CoreHD_CI,");
+	CalculateKendallMetric(F,I,R,"CoreHD_CI,",comp);
+	putc(',',R);
 		
 	fprintf(stderr, "Calculo metrica Degree y Betweenness\n");
 
-	CalculateKendallMetric(G,H,R,"Degree_Betweenness,");
+	CalculateKendallMetric(G,H,R,"Degree_Betweenness,",comp);
+	putc(',',R);
 
 	fprintf(stderr, "Calculo metrica Degree y CI\n");
 
-	CalculateKendallMetric(G,I,R,"Degree_CI,");
+	CalculateKendallMetric(G,I,R,"Degree_CI,",comp);
+	putc(',',R);
 
 	fprintf(stderr, "Calculo metrica Betweenness y CI\n");
 
-	CalculateKendallMetric(H,I,R,"Betweenness_CI,");
+	CalculateKendallMetric(H,I,R,"Betweenness_CI,",comp);
+
+	putc('\n',R);
 
 	fclose(R);
 	fclose(F);

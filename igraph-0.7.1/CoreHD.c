@@ -285,6 +285,35 @@ int init_CoreHD(const char *name){
 		}
 	}	
 
+	fprintf(stderr, "%i %i\n", (int)igraph_vcount(&graph), (int)igraph_ecount(&graph));
+
+	fprintf(stderr, "Eliminación nodos grado 0\n");
+	/* Eliminacion nodos de grado cero */
+	while(igraph_vcount(&graph) > 0){
+
+		igraph_vector_init(&result,0);
+		igraph_degree(&graph, &result, igraph_vss_all(), IGRAPH_ALL, IGRAPH_LOOPS); 
+
+		int max_node = igraph_vector_which_max(&result);
+		
+		igraph_delete_vertices(&graph,igraph_vss_1(max_node));
+		igraph_vector_destroy(&result);
+
+		/* agregar nodo removido a la lista */
+		int rest = 0;
+		for(int i = 0; i < total_nodes; i++){
+			if(del_nodes[i] == max_node){
+				// agrego a lista
+				igraph_vector_push_back(&nodes,i);
+				del_nodes[i] = -1;
+				rest = 1;
+			}
+			else{
+				del_nodes[i] -= rest;
+			}
+		}
+	}
+
 	F = fopen("removedNodes_CoreHD.txt","w");
 	for(int i = 0; i < igraph_vector_size(&nodes)-1; i++){
 		sprintf(output, "%d\n", (int)igraph_vector_e(&nodes,i));

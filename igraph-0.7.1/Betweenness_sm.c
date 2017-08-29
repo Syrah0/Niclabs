@@ -27,6 +27,8 @@ int init_Betweenness(const char * name){
 	double time_used;
 	double time_used_total = 0;
 
+	fprintf(stderr, "Corriendo Betweenness\n");
+
 	G = fopen("Betweenness_times.csv","w"); // archivo que guardara los tiempo de ejecucion por iteracion
 	H = fopen("Betweenness_iter.csv", "w"); // archivo que guardara los R-index (componente mas grande) por iteracion
 
@@ -55,8 +57,6 @@ int init_Betweenness(const char * name){
 		igraph_vector_init(&betweenness, 0);
 		igraph_betweenness(&graph, &betweenness, igraph_vss_all(), 0,/*weights=*/ 0, 0);  // calculo del betweenness de cada nodo del grafo
 		node = igraph_vector_which_max(&betweenness);
-
-		//print_vector(&betweenness,stdout);
 
 		igraph_delete_vertices(&graph,igraph_vss_1(node));
 		igraph_vector_destroy(&betweenness);
@@ -115,8 +115,35 @@ int init_Betweenness(const char * name){
 		}
 		iter++;		
 	}
-	//print_vector(&nodes,stdout);
-	char output[50];	
+	char output[50];
+
+	fprintf(stderr, "%i %i\n", (int)igraph_vcount(&graph), (int)igraph_ecount(&graph));
+
+	fprintf(stderr, "Eliminación nodos grado 0\n");	
+
+	/* Eliminacion nodos de grado cero */
+	while(igraph_vcount(&graph) > 0){
+		igraph_vector_init(&degrees,0);
+		igraph_degree(&graph, &degrees, igraph_vss_all(), IGRAPH_ALL, IGRAPH_LOOPS); 
+		node = igraph_vector_which_max(&degrees);
+
+		igraph_delete_vertices(&graph,igraph_vss_1(node));
+		igraph_vector_destroy(&degrees);
+
+		/* agregar nodo removido a la lista */
+		int rest = 0;
+		for(int i = 0; i < total_nodes; i++){
+			if(del_nodes[i] == node){
+				// agrego a lista
+				igraph_vector_push_back(&nodes,i);
+				del_nodes[i] = -1;
+				rest = 1;
+			}
+			else{
+				del_nodes[i] -= rest;
+			}
+		}
+	}
 
 	F = fopen("removedNodes_Betweenness.txt","w");
 	for(int i = 0; i < igraph_vector_size(&nodes)-1; i++){
@@ -128,7 +155,6 @@ int init_Betweenness(const char * name){
 	fclose(F);	
 		
 	sprintf(output, "%f", time_used_total);
-	//fprintf(stderr, "%s\n", output);
 
 	fclose(G);
 	fclose(H);
@@ -140,9 +166,9 @@ int init_Betweenness(const char * name){
 	fclose(G);
 	fprintf(stderr, "%i %i\n", igraph_vcount(&graph), igraph_ecount(&graph));
 
-	F = fopen("grafoFinal_Betweenness.edges","w");
+	/*F = fopen("grafoFinal_Betweenness.edges","w");
     igraph_write_graph_edgelist(&graph,F); // escritura
-	fclose(F);	
+	fclose(F);*/	
 
 	printf("VACIO\n");
 

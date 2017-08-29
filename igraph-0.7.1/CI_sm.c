@@ -6,6 +6,11 @@ Algoritmo CIl: Debe tener l inicial -> consideraremos l = 4 (por comparacion rea
 3.- Remover la raiz (la idea es remover del grafo el nodo con mayor CIl).
 4.- Heapify -> Recalcular los valores de CI de los nodos -> Heapify y volver a 3.
 
+// Reinsercion de nodos -> Start from the percolation point (network fragmented in many clusters).
+-> add back one of the removed node tq, tras insertarlo una la menor cantidad de clusters (no los mas pequeños).
+Reingresa el nodo y sus lados!
+Esto se repite hasta que todos los nodos se hayan reinsertados
+
 */
 #include <igraph.h>
 #include <stdio.h>
@@ -13,7 +18,7 @@ Algoritmo CIl: Debe tener l inicial -> consideraremos l = 4 (por comparacion rea
 #include <string.h>
 #include <math.h>
 #include <time.h>
-
+#include "print_vector.c"
 
 /* Se encarga de calcular los nodos en el borde de la vecindad de radio l del nodo "node" */
 igraph_vector_t nodesToDistance(igraph_t *g, int l, int node){
@@ -149,6 +154,7 @@ int init_CI(const char * name, int rad){
 	igraph_t graph, gaux;
 	igraph_vector_t degrees, nodes, CIvalues, nodes_neigh, edges, neigh;
 	igraph_es_t rem;
+	igraph_integer_t diam;
 	int l = rad; // radio de la vecindad elegido
 	double rest;
 	double remove = 0.1; // multiplicador de porcentaje
@@ -157,6 +163,8 @@ int init_CI(const char * name, int rad){
 	clock_t start, end, start_ini, end_ini;
 	double time_used;
 	double time_used_total = 0;
+
+	fprintf(stderr, "Corriendo CI con radio = %d\n", rad);
 
 	G = fopen("CI_times.csv","w"); // archivo que guardara los tiempo de ejecucion por iteracion
 	H = fopen("CI_iter.csv", "w"); // archivo que guardara los R-index (componente mas grande) por iteracion
@@ -175,6 +183,13 @@ int init_CI(const char * name, int rad){
 	fclose(F);
 
 	igraph_simplify(&graph,1,0,/*edge_comb=*/ 0);
+
+	igraph_diameter(&graph,&diam,0,0,0,IGRAPH_UNDIRECTED,1);
+	fprintf(stderr, "d=%d\n", diam);
+	if(l<0 || l>diam){
+		fprintf(stderr, "Radio de CI fuera de los limites. 0 <= l <= %d\n",diam );
+		exit(0);
+	}
 
 	/* Calcular los grados de los nodos del grafo */
 	igraph_vector_init(&degrees, 0);
@@ -201,14 +216,17 @@ int init_CI(const char * name, int rad){
 		for(int j = 0; j < igraph_vector_size(&neigh); j++){ 
 			sum += (igraph_vector_e(&degrees, igraph_vector_e(&neigh, j)) - 1);
 		}
-		CI *= sum; 
+		if(l != 0){
+			CI *= sum; 
+		}
 		igraph_vector_push_back(&CIvalues, CI); // agrega valor CI calculado al vector que contendra todos los CI de cada nodo
+		//print_vector(&neigh,stdout);
 	}
-	//print_vector(&CIvalues,stdout);
-
+	print_vector(&CIvalues,stdout);
 	double y = (1.0/(l+1)); // calcula el exponente de la condicion de termino del algoritmo
 	double x = (igraph_vector_sum(&CIvalues)/(N * k)); // calcula la base de la condicion de termino del algoritmo
 	rest = pow(x,y); // calcula la condicion de termino
+	fprintf(stderr, "r=%lf\n", rest);
 
 	while(rest > 1){
 		int max_node = igraph_vector_which_max(&CIvalues); // obtiene el nodo con mayor CI
@@ -289,7 +307,7 @@ int init_CI(const char * name, int rad){
 		igraph_vector_init(&degrees, 0);
 		igraph_degree(&graph, &degrees, igraph_vss_all(), IGRAPH_ALL, IGRAPH_LOOPS); 
 
-		N = igraph_vcount(&graph) - 1; // cantidad de nodos del grafo (-1 porque no se debe considerar el nodo que se desea eliminar)
+		//N = igraph_vcount(&graph) - 1; // cantidad de nodos del grafo (-1 porque no se debe considerar el nodo que se desea eliminar)
 
 		/* actualizacion de los valores CI solo de los nodos dentro de la vecindad de radio l+1 del nodo a eliminar */
 		for(int i = 0; i < igraph_vector_size(&nodes_neigh); i++){
@@ -300,7 +318,9 @@ int init_CI(const char * name, int rad){
 			for(int j = 0; j < igraph_vector_size(&neigh); j++){
 				sum += (igraph_vector_e(&degrees, igraph_vector_e(&neigh, j)) - 1);
 			}
-			CI *= sum;
+			if(l != 0){
+				CI *= sum; 
+			}
 			igraph_vector_set(&CIvalues,igraph_vector_e(&nodes_neigh,i),CI); // actualiza el valor de CI del nodo i dentro del vector
 		}
 		
@@ -308,7 +328,11 @@ int init_CI(const char * name, int rad){
 		igraph_copy(&graph,&gaux);
 		igraph_destroy(&gaux);
 
+		//k = igraph_vector_sum(&degrees)/igraph_vector_size(&degrees);
+		fprintf(stderr, "sum = %lf, N*k=%lf\n",igraph_vector_sum(&CIvalues), N*k);
+
 		/* calculo de la nueva condicion de termino */
+		print_vector(&CIvalues,stdout);
 		x = (igraph_vector_sum(&CIvalues)/(N * k)); // calculo de la nueva base
 		rest = pow(x,y);
 	}
@@ -332,36 +356,6 @@ int init_CI(const char * name, int rad){
     igraph_write_graph_edgelist(&graph,F); // escritura
 	fclose(F);	
 
-	// VER SI HACER DESMANTELAMIENTO O NO Y SI HACERLO CON CUAL REGLA
-
-	/* realizar tree-breaking o desmantelamiento */
-	fprintf(stderr, "Desmantelamiento\n");
-
-	while(1){
-		int giant_comp = max_component(&graph);
-		if(giant_comp == 1){
-			break;
-		}
-
-		igraph_vector_init(&degrees, 0);
-		igraph_degree(&graph, &degrees, igraph_vss_all(), IGRAPH_ALL, IGRAPH_LOOPS); 
-
-		int max_node = igraph_vector_which_max(&degrees);
-		igraph_delete_vertices(&graph, igraph_vss_1(max_node));
-		int res = 0;
-		for(int i = 0; i < total_nodes; i++){
-			if(del_nodes[i] == max_node){
-				// agrego a lista
-				igraph_vector_push_back(&nodes,i);
-				del_nodes[i] = -1;
-				res = 1;
-			}
-			else{
-				del_nodes[i] -= res;
-			}
-		}
-	}
-	
 	fprintf(stderr, "%i %i\n", igraph_vcount(&graph), igraph_ecount(&graph));
 
 	F = fopen("removedNodes_CI.txt","w");

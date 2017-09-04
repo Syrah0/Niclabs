@@ -4,8 +4,8 @@
 
 # We need a C compiler.
 CC='gcc'
-CFLAGS='-g -O2  -Wall '
+CFLAGS='-g -O2 -I/usr/include/libxml2  -Wall '
 
 # We need `config.h'.
-CPPFLAGS="-I$abs_top_builddir "
+CPPFLAGS="-I$abs_top_builddir -g -O2 -I/usr/include/libxml2"
 

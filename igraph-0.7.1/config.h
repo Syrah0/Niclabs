@@ -44,7 +44,7 @@
 /* #undef HAVE_LIBLAPACK */
 
 /* Define to 1 if you have the libxml2 libraries installed */
-/* #undef HAVE_LIBXML */
+#define HAVE_LIBXML 1
 
 /* Define to 1 if you have the `log1p' function. */
 #define HAVE_LOG1P 1

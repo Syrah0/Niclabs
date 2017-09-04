@@ -1,0 +1,83 @@
+Collective Influence:
+
+Minimizar la funcion costo El(n) -> entregara los influenciadores 
+El(n) = sum_i{1..N}CIl(i) / CI collective influence
+
+Manera de minimizarla es eliminando los nodos con mayor CI (mayor CI => menor sera sum => menor energia)
+
+Haciendo lo anterior: la red se destruye de la manera mas optima y rapida 
+
+l tiene que ser menor al diametro sino => CI = 0 => pasara como un algoritmo de eliminacion random de nodos
+
+Los nodos hojas dan contribucion CI = 0, se ignoran. Tienen cero influencia en la red (grado - 1)
+
+
+ our optimization theory identifies a new class of strategic influencers, called weak-nodes, which outrank the hubs in the network.
+
+ the top influencers
+are highly counterintuitive:  low degree nodes play a major broker role in the network, and
+despite being weakly connected, can be powerful influencers.
+
+
+ the  most  influential  nodes  are  the  ones  forming  the  minimal  set
+that guarantees a global connection of the network
+
+Encontrar el set minimo de nodos que, tras removerlos, rompa la red en varias partes
+
+La medida de la influencia es el tamaño de la componente conexa mas grande (o gigante) [The natural measure of influence is,  therefore,
+the size of the largest (giant) connected component as the influencers are removed from the
+network.]
+
+Percolation theory -> si elegimos nodos random para remover => la red llegara a caer en un colapso estructural.
+[
+It  is  well  known  from  percolation  theory  [21]  that,  if  we  choose  these  nodes
+randomly, the network undergoes a structural collapse at a certain critical fraction where
+the probability of existence of the giant connected component vanishes,
+G
+= 0. ]
+
+La solucion necesita que lambda <= 1 (componente gigante = 0) y el optimo se encuentra cuando lambda = 1
+
+hubs node = nodos que tienen muchas conexiones a otros nodos en la red. Pese a tener "weak links", son considerados nodos influyentes dado la gran cantidad de conexiones que tienen con los demas nodos. NODOS CON MAYOR GRADO
+
+A node’s spreading power is the force with which it can push
+a spreading process to the rest of the network.  
+More precisely,
+in a susceptible-infected (SI) spreading process without recov-
+ery, which inevitably reaches the entire connected component
+of the network, the spreading power of the seed node predicts
+the delay before half (or some other large percentage of) the
+network is reached.
+
+Recent research based on optimal percolation in random
+networks has shown, however, that the degree is neither the sole nor the best predictor of influence
+in complex networks. Low-degree nodes may also be optimal influencers if they are hierarchically
+linked to hubs.
+
+the concept of influence is tightly related to the concept of network integrity. 
+
+ the most influential nodes in a complex network form the minimal set whose removal would dismantle the network in many disconnected and non-extensive components. (what is many and non-extensive (dim)?)
+
+The measure of this fragmentation is the size of the largest cluster of nodes, called the giant component G of the network
+
+Fn objetivo -> largest eigenvalue of the non-backtracking matrix (minimizacion)
+
+Optimal set -> minimizing the energy of a many-body system
+
+Remarkably, a large number of previously neglected weakly connected nodes emerges among the optimal influencers. These are topologically tagged as low-degree nodes surrounded by hierarchical coronas of hubs, and are uncovered only through the optimal collective interplay of all the influencers in the network.
+
+The order parameter of the influence problem is the probability that i belongs to the giant component in a modified network where
+j is absent.
+
+This sum contains the contribution of the nodes living on the surface of the ball surrounding the central vertex i,
+each node weighted by the factor k − 1.  This means that a node placed at the center of a corona irradiating many links— the structure hierarchically emerging at different l-levels— can have a very large collective influence.
+
+ Such “weak-nodes” can outrank nodes with larger degree that occupy mediocre peripherical locations in the network.
+
+one cause for the poor performance of the high-
+degree rank is that most of the hubs are clustered (rich-club effect), which gives a mediocre
+importance to their contacts.  As a consequence, hubs are outranked by nodes with lower
+degree surrounded by coronas of hubs 
+
+many low-degree nodes can be optimal influencers if
+they are “surrounded by hierarchical coronas of hubs”n

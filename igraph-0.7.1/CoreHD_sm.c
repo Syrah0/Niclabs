@@ -36,7 +36,7 @@ igraph_vector_t coreCal(igraph_vector_t *res, int val){
 	return remaux;
 }
 
-int init_CoreHD(const char *name){
+int init_CoreHD(const char *name, int nodeComp){
 	FILE *F, *G, *H;
 	char filename[32];
 	igraph_t graph, gaux;
@@ -111,7 +111,7 @@ int init_CoreHD(const char *name){
 		igraph_vector_destroy(&alledges);
 	}
 
-	while(igraph_ecount(&gaux) != 0){ // realizar paso 2 y 3 hasta que 2-core sea vacio
+	while(igraph_ecount(&gaux) != 0 && (int)rem_nodes < nodeComp){ // realizar paso 2 y 3 hasta que 2-core sea vacio
 
 		igraph_vector_init(&result, 0);
 		igraph_degree(&gaux, &result, igraph_vss_all(), IGRAPH_ALL, IGRAPH_LOOPS); // calcula los grados de los vertices que quedan en el grafo
@@ -244,7 +244,7 @@ int init_CoreHD(const char *name){
 
 	while(1){
 		int giant_comp = max_component(&graph);
-		if(giant_comp == 1){
+		if(giant_comp == 1 || (int)rem_nodes == nodeComp){
 			break;
 		}
 
@@ -254,6 +254,7 @@ int init_CoreHD(const char *name){
 		int max_node = igraph_vector_which_max(&result);
 		igraph_delete_vertices(&graph, igraph_vss_1(max_node));
 		int rest = 0;
+		rem_nodes += 1.0;
 		for(int i = 0; i < total_nodes; i++){
 			if(del_nodes[i] == max_node){
 				// agrego a lista
@@ -271,7 +272,7 @@ int init_CoreHD(const char *name){
 
 	fprintf(stderr, "Eliminación nodos grado 0\n");
 	/* Eliminacion nodos de grado cero */
-	while(igraph_vcount(&graph) > 0){
+	while(igraph_vcount(&graph) > 0 && (int)rem_nodes < nodeComp){
 
 		igraph_vector_init(&result,0);
 		igraph_degree(&graph, &result, igraph_vss_all(), IGRAPH_ALL, IGRAPH_LOOPS); 
@@ -283,6 +284,7 @@ int init_CoreHD(const char *name){
 
 		/* agregar nodo removido a la lista */
 		int rest = 0;
+		rem_nodes += 1.0;
 		for(int i = 0; i < total_nodes; i++){
 			if(del_nodes[i] == max_node){
 				// agrego a lista

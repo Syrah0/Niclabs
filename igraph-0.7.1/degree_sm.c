@@ -15,7 +15,7 @@ Algoritmo CIl: Debe tener l inicial -> consideraremos l = 4 (por comparacion rea
 #include <time.h>
 //#include "max_component.c"
 
-int init_Degree(const char * name){
+int init_Degree(const char * name, int nodeComp){
 	FILE *F, *G, *H;
 	char filename[32];
 	igraph_t graph, gaux, gaux2;
@@ -116,7 +116,7 @@ int init_Degree(const char * name){
 		fputs(output,H);
 		putc('\n',H);
 
-		if(giant_comp == 1){
+		if(giant_comp == 1 || (int)rem_nodes == nodeComp){
 			break;
 		}
 		iter++;		
@@ -145,7 +145,7 @@ int init_Degree(const char * name){
 	fprintf(stderr, "Eliminación nodos grado 0\n");	
 
 	/* Eliminacion nodos de grado cero */
-	while(igraph_vcount(&graph) > 0){
+	while(igraph_vcount(&graph) > 0 && (int)rem_nodes < nodeComp){
 		igraph_vector_init(&degrees,0);
 		igraph_degree(&graph, &degrees, igraph_vss_all(), IGRAPH_ALL, IGRAPH_LOOPS); 
 		node = igraph_vector_which_max(&degrees);
@@ -155,6 +155,7 @@ int init_Degree(const char * name){
 
 		/* agregar nodo removido a la lista */
 		int rest = 0;
+		rem_nodes += 1.0;
 		for(int i = 0; i < total_nodes; i++){
 			if(del_nodes[i] == node){
 				// agrego a lista

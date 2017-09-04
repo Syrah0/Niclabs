@@ -143,10 +143,10 @@ int main(int argc, const char * argv[]){
 	FILE *F, *G, *H, *I, *R;
 	int rad = 0, comp = 0;
 	const char* num = argv[2];
-	const char* elem = argv[3];
+	const char* elem = argv[4];
 
-	if(argc != 4){
-		fprintf(stderr, "Ingresar: nombre del archivo que contiene el grafo, la vecindad de CI y cantidad de elementos a comparar\n");
+	if(argc != 5){
+		fprintf(stderr, "Ingresar: nombre archivo, la vecindad de CI, modo extraccion CI (random, degree, order) y cantidad de elementos a comparar\n");
 		exit(1);
 	}
 
@@ -158,11 +158,21 @@ int main(int argc, const char * argv[]){
 		comp = comp*10 + (elem[i] - '0');
 	}
 
-
-	init_CoreHD(argv[1]);
-	init_Degree(argv[1]);
-	init_Betweenness(argv[1]);
-	init_CI(argv[1],rad);
+	fprintf(stderr, "\n");
+	init_CoreHD(argv[1],comp);
+	
+	fprintf(stderr, "\n\n");
+	init_Degree(argv[1],comp);
+	
+	fprintf(stderr, "\n\n");
+	init_Betweenness(argv[1],comp);
+	
+	fprintf(stderr, "\n\n");
+	init_CI(argv[1],rad,argv[3],comp);
+	
+	fprintf(stderr, "\n\n");
+	fprintf(stderr, "Corriendo KENDALL\n");
+	fprintf(stderr, "\n");
 
 	F = fopen("removedNodes_CoreHD.txt","r"); // metrica 1
 	G = fopen("removedNodes_Degree.txt","r"); // metrica 2
@@ -171,6 +181,9 @@ int main(int argc, const char * argv[]){
 	R = fopen("Kendall_Correlation.csv","a");
 
 	fputs(argv[1],R);
+	putc(',',R);
+
+	fputs(argv[4],R);
 	putc(',',R);
 	
 	fprintf(stderr, "Calculo metrica CoreHD y Degree\n");
